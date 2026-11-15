@@ -4,7 +4,7 @@
 
 use egui::{Color32, Pos2, Rect, Ui, pos2};
 
-use crate::winui::{fill, px};
+use crate::winui::{self, fill, px};
 
 /// A part of the bar, for the one held down.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -152,14 +152,17 @@ pub fn bar(
     *pos = pos.clamp(0.0, max);
 
     // ---- paint -----------------------------------------------------------------------------
-    fill(
-        &p,
-        track.left(),
-        track.top(),
-        track.right() - 1.0,
-        track.bottom() - 1.0,
-        TRACK(),
-    );
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    if !is_modern {
+        fill(
+            &p,
+            track.left(),
+            track.top(),
+            track.right() - 1.0,
+            track.bottom() - 1.0,
+            TRACK(),
+        );
+    }
     let s = start(*pos);
     let e = s + thumb - 1.0;
     // The pixel at (u along, v across).
@@ -225,7 +228,113 @@ pub fn bar(
     // Windows 8's and the classic bars: arrows always shown, a square thumb the bar's width.
     let classic = crate::theme::current().controls.scroll == crate::palette::ScrollLook::Classic;
     let expanded = classic || resp.hovered() || resp.dragged();
-    if thumb > 0.0 {
+    if is_modern {
+        if thumb > 0.0 {
+            let thumb_w = if expanded { 7.0 } else { 4.0 };
+            let radius = thumb_w / 2.0;
+            let thumb_col = if held == Some(Part::Thumb) {
+                Color32::from_rgb(16, 185, 129)
+            } else if hot == Some(Part::Thumb) {
+                if crate::theme::dark() {
+                    Color32::from_rgb(203, 213, 225)
+                } else {
+                    Color32::from_rgb(71, 85, 105)
+                }
+            } else if expanded {
+                if crate::theme::dark() {
+                    Color32::from_rgba_unmultiplied(148, 163, 184, 150)
+                } else {
+                    Color32::from_rgba_unmultiplied(100, 116, 139, 140)
+                }
+            } else if crate::theme::dark() {
+                Color32::from_rgba_unmultiplied(148, 163, 184, 80)
+            } else {
+                Color32::from_rgba_unmultiplied(100, 116, 139, 90)
+            };
+            let thumb_rect = if vertical {
+                let tx = track.left() + (THICK - thumb_w) / 2.0;
+                Rect::from_min_max(pos2(tx, track.top() + s), pos2(tx + thumb_w, track.top() + e))
+            } else {
+                let ty = track.top() + (THICK - thumb_w) / 2.0;
+                if from_right {
+                    Rect::from_min_max(pos2(track.right() - e, ty), pos2(track.right() - s, ty + thumb_w))
+                } else {
+                    Rect::from_min_max(pos2(track.left() + s, ty), pos2(track.left() + e, ty + thumb_w))
+                }
+            };
+            p.rect_filled(winui::rect(thumb_rect), radius, thumb_col);
+
+            if expanded {
+                // Chevrons
+                let chev_btn = |center: Pos2, part: Part| {
+                    let is_hot = hot == Some(part);
+                    let is_held = held == Some(part);
+                    if is_hot || is_held {
+                        let btn_rect = Rect::from_center_size(center, egui::vec2(16.0, 16.0));
+                        let btn_bg = if is_held {
+                            if crate::theme::dark() {
+                                Color32::from_rgb(71, 85, 105)
+                            } else {
+                                Color32::from_rgb(203, 213, 225)
+                            }
+                        } else if crate::theme::dark() {
+                            Color32::from_rgb(51, 65, 85)
+                        } else {
+                            Color32::from_rgb(226, 232, 240)
+                        };
+                        p.rect_filled(winui::rect(btn_rect), 4.0, btn_bg);
+                    }
+                    if is_held {
+                        Color32::from_rgb(16, 185, 129)
+                    } else if is_hot {
+                        if crate::theme::dark() {
+                            Color32::WHITE
+                        } else {
+                            Color32::from_rgb(15, 23, 42)
+                        }
+                    } else if crate::theme::dark() {
+                        Color32::from_rgb(148, 163, 184)
+                    } else {
+                        Color32::from_rgb(100, 116, 139)
+                    }
+                };
+
+                let c1 = if vertical {
+                    pos2(track.left() + THICK / 2.0, track.top() + THICK / 2.0)
+                } else if from_right {
+                    pos2(track.right() - THICK / 2.0, track.top() + THICK / 2.0)
+                } else {
+                    pos2(track.left() + THICK / 2.0, track.top() + THICK / 2.0)
+                };
+                let col1 = chev_btn(c1, Part::First);
+                let stroke1 = egui::Stroke::new(1.6, col1);
+                if vertical {
+                    p.line_segment([pos2(c1.x - 3.5, c1.y + 1.5), pos2(c1.x, c1.y - 2.0)], stroke1);
+                    p.line_segment([pos2(c1.x, c1.y - 2.0), pos2(c1.x + 3.5, c1.y + 1.5)], stroke1);
+                } else {
+                    p.line_segment([pos2(c1.x + 1.5, c1.y - 3.5), pos2(c1.x - 2.0, c1.y)], stroke1);
+                    p.line_segment([pos2(c1.x - 2.0, c1.y), pos2(c1.x + 1.5, c1.y + 3.5)], stroke1);
+                }
+
+                let c2 = if vertical {
+                    pos2(track.left() + THICK / 2.0, track.bottom() - THICK / 2.0)
+                } else if from_right {
+                    pos2(track.left() + THICK / 2.0, track.top() + THICK / 2.0)
+                } else {
+                    pos2(track.right() - THICK / 2.0, track.top() + THICK / 2.0)
+                };
+                let col2 = chev_btn(c2, Part::Second);
+                let stroke2 = egui::Stroke::new(1.6, col2);
+                if vertical {
+                    p.line_segment([pos2(c2.x - 3.5, c2.y - 2.0), pos2(c2.x, c2.y + 1.5)], stroke2);
+                    p.line_segment([pos2(c2.x, c2.y + 1.5), pos2(c2.x + 3.5, c2.y - 2.0)], stroke2);
+                } else {
+                    p.line_segment([pos2(c2.x - 1.5, c2.y - 3.5), pos2(c2.x + 2.0, c2.y)], stroke2);
+                    p.line_segment([pos2(c2.x + 2.0, c2.y), pos2(c2.x - 1.5, c2.y + 3.5)], stroke2);
+                }
+            }
+        }
+    } else if thumb > 0.0 {
         if expanded {
             let ink = ink_of(Part::Thumb);
             if classic {
@@ -269,6 +378,9 @@ pub fn bar(
 /// The 17 × 17 square where a vertical and a horizontal bar meet, its top-left at English
 /// (`x`, `y`) — at the bottom-left in RTL, where the vertical bar is.
 pub fn corner(ui: &Ui, x: f32, y: f32) {
+    if crate::theme::metrics().flyout_radius >= 12.0 {
+        return;
+    }
     let x = crate::winui::at(pos2(x, y), THICK).x;
     fill(
         ui.painter(),

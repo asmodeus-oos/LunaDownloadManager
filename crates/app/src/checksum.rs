@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use egui::{Color32, Rect, Stroke, pos2};
 use mdm_engine::verify::Hash;
 
 use crate::dialogs::{Outcome, window};
@@ -56,29 +57,40 @@ impl ChecksumDialog {
         let id = format!("checksum-{}", self.id);
         let got = self.mismatch();
         let extra = if got.is_some() { 30.0 } else { 0.0 };
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [480.0, 160.0 + extra] } else { [430.0, 118.0 + extra] };
         let out = window(
             ctx,
             &id,
             "Verify checksum",
-            [430.0, 118.0 + extra],
+            dlg_size,
             false,
             LIGHT_BG(),
             |ui, o| {
                 let p = ui.painter().clone();
+                let text_color = if is_modern { winui::TEXT() } else { LIGHT_TEXT() };
+                if is_modern {
+                    let dark = crate::theme::dark();
+                    let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+                    let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+                    let card_rect = Rect::from_min_max(pos2(o.x + 8.0, o.y + 6.0), pos2(o.x + 472.0, o.y + 154.0 + extra));
+                    p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+                    p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+                }
+
                 text(
                     &p,
-                    o.x + 11.0,
-                    o.y + 21.0,
+                    o.x + 16.0,
+                    o.y + 24.0,
                     crate::i18n::t("Expected checksum (MD5, SHA-1, SHA-256, SHA-512 or CRC32):"),
-                    LIGHT_TEXT(),
+                    text_color,
                 );
-                let edit = winui::edit_light(
-                    ui,
-                    r(o, 11.0, 31.0, 408.0, 23.0),
-                    &mut self.text,
-                    true,
-                    false,
-                );
+                let edit_rc = if is_modern { r(o, 16.0, 36.0, 448.0, 36.0) } else { r(o, 11.0, 31.0, 408.0, 23.0) };
+                let edit = if is_modern {
+                    winui::edit(ui, edit_rc, &mut self.text, true, false)
+                } else {
+                    winui::edit_light(ui, edit_rc, &mut self.text, true, false)
+                };
                 if !self.focused {
                     edit.request_focus();
                     self.focused = true;
@@ -178,22 +190,23 @@ impl ChecksumDialog {
                     (crate::i18n::mark("OK"), crate::i18n::mark("Cancel"))
                 };
                 // As wide as their labels in this language (#192).
+                let btn_right = if is_modern { 464.0 } else { 419.0 };
                 let [go_at, close_at] = winui::buttons_to_right(
                     &p,
-                    419.0,
+                    btn_right,
                     8.0,
                     &[(primary, 73.0), (secondary, 73.0)],
                     160.0,
                 )[..] else {
                     unreachable!("two buttons")
                 };
-                let go = winui::button_light(
-                    ui,
-                    r(o, go_at.0, 87.0, go_at.1, 21.0),
-                    primary,
-                    kind,
-                    false,
-                );
+                let btn_y = if is_modern { 110.0 } else { 87.0 };
+                let btn_h = if is_modern { 34.0 } else { 21.0 };
+                let go = if is_modern {
+                    winui::button(ui, r(o, go_at.0, btn_y, go_at.1, btn_h), primary, kind, false, None)
+                } else {
+                    winui::button_light(ui, r(o, go_at.0, btn_y, go_at.1, btn_h), primary, kind, false)
+                };
                 let go = winui::why_disabled(
                     go,
                     !valid,
@@ -206,14 +219,11 @@ impl ChecksumDialog {
                     },
                 )
                 .clicked();
-                let close = winui::button_light(
-                    ui,
-                    r(o, close_at.0, 87.0, close_at.1, 21.0),
-                    secondary,
-                    ButtonKind::Normal,
-                    false,
-                )
-                .clicked();
+                let close = if is_modern {
+                    winui::button(ui, r(o, close_at.0, btn_y, close_at.1, btn_h), secondary, ButtonKind::Normal, false, None).clicked()
+                } else {
+                    winui::button_light(ui, r(o, close_at.0, btn_y, close_at.1, btn_h), secondary, ButtonKind::Normal, false).clicked()
+                };
                 let enter = winui::enter_pressed(ui);
                 if close || winui::escape_pressed(ui) {
                     // A checked file keeps its hash with the download.

@@ -139,6 +139,116 @@ macro_rules! palette {
                     $($field: if dark { $dark } else { $light },)*
                 }
             }
+
+            /// The modern look's dark or light variant based on mister_download_manager_0_5_0.html.
+            pub const fn modern(dark: bool) -> Self {
+                let mut p = Self::classic(dark);
+                p.dark = dark;
+                p.focus_line_straight = false;
+                p.access_keys_always = false;
+                p.tree_chevrons = true;
+                if dark {
+                    p.window = rgb(0x0f, 0x17, 0x2a);
+                    p.text = rgb(0xf8, 0xfa, 0xfc);
+                    p.text_disabled = rgb(0x64, 0x74, 0x8b);
+                    p.muted = rgb(0x94, 0xa3, 0xb8);
+                    p.link = rgb(0x34, 0xd3, 0x99);
+                    p.accent = rgb(0x10, 0xb9, 0x81);
+                    p.focus_ring = rgb(0x34, 0xd3, 0x99);
+                    p.selection = rgb(0x13, 0x4e, 0x4a);
+                    p.selection_text = rgb(0xa7, 0xf3, 0xd0);
+                    p.group_line = rgb(0x33, 0x41, 0x55);
+                    p.field = rgb(0x1e, 0x29, 0x3b);
+                    p.field_border = rgb(0x33, 0x41, 0x55);
+                    p.button = rgb(0x1e, 0x29, 0x3b);
+                    p.button_hot = rgb(0x33, 0x41, 0x55);
+                    p.button_pressed = rgb(0x47, 0x55, 0x69);
+                    p.button_border = rgb(0x33, 0x41, 0x55);
+                    p.button_text = rgb(0xf8, 0xfa, 0xfc);
+                    p.button_accent = rgb(0x04, 0x78, 0x57);
+                    p.button_accent_hot = rgb(0x05, 0x96, 0x69);
+                    p.button_accent_text = rgb(0xff, 0xff, 0xff);
+                    p.list = rgb(0x1e, 0x29, 0x3b);
+                    p.list_frame = rgb(0x33, 0x41, 0x55);
+                    p.header = rgb(0x0f, 0x17, 0x2a);
+                    p.header_line = rgb(0x33, 0x41, 0x55);
+                    p.menubar = rgb(0x0f, 0x17, 0x2a);
+                    p.menubar_bottom = rgb(0x33, 0x41, 0x55);
+                    p.menubar_line = rgb(0x33, 0x41, 0x55);
+                    p.menubar_hot = rgb(0x1e, 0x29, 0x3b);
+                    p.menubar_open = rgb(0x13, 0x4e, 0x4a);
+                    p.menu = rgb(0x1e, 0x29, 0x3b);
+                    p.menu_item = rgb(0x1e, 0x29, 0x3b);
+                    p.menu_hot = rgb(0x33, 0x41, 0x55);
+                    p.menu_border = rgb(0x33, 0x41, 0x55);
+                    p.menu_text = rgb(0xf8, 0xfa, 0xfc);
+                    p.toolbar_hot = rgb(0x33, 0x41, 0x55);
+                    p.toolbar_pressed = rgb(0x1e, 0x29, 0x3b);
+                    p.toolbar_hot_border = rgb(0x47, 0x55, 0x69);
+                    p.tree = rgb(0x1e, 0x29, 0x3b);
+                    p.tree_frame = rgb(0x33, 0x41, 0x55);
+                    p.caption = rgb(0x0f, 0x17, 0x2a);
+                    p.caption_text = rgb(0xf8, 0xfa, 0xfc);
+                    p.chip_web = rgb(0x05, 0x96, 0x69);
+                    p.chip_torrent = rgb(0x63, 0x66, 0xf1);
+                    p.chip_text = rgb(0xff, 0xff, 0xff);
+                    p.progress_bar = rgb(0x10, 0xb9, 0x81);
+                    p.progress_track = rgb(0x33, 0x41, 0x55);
+                } else {
+                    p.window = rgb(0xf8, 0xfa, 0xfc);
+                    p.text = rgb(0x1e, 0x29, 0x3b);
+                    p.text_disabled = rgb(0x94, 0xa3, 0xb8);
+                    p.muted = rgb(0x64, 0x74, 0x8b);
+                    p.link = rgb(0x04, 0x78, 0x57);
+                    p.accent = rgb(0x05, 0x96, 0x69);
+                    p.focus_ring = rgb(0x04, 0x78, 0x57);
+                    p.selection = rgb(0xec, 0xfd, 0xf5);
+                    p.selection_text = rgb(0x06, 0x5f, 0x46);
+                    p.group_line = rgb(0xe2, 0xe8, 0xf0);
+                    p.field = rgb(0xff, 0xff, 0xff);
+                    p.field_border = rgb(0xe2, 0xe8, 0xf0);
+                    p.button = rgb(0xff, 0xff, 0xff);
+                    p.button_hot = rgb(0xf1, 0xf5, 0xf9);
+                    p.button_pressed = rgb(0xe2, 0xe8, 0xf0);
+                    p.button_border = rgb(0xe2, 0xe8, 0xf0);
+                    p.button_text = rgb(0x33, 0x41, 0x55);
+                    p.button_accent = rgb(0x04, 0x78, 0x57);
+                    p.button_accent_hot = rgb(0x06, 0x5f, 0x46);
+                    p.button_accent_text = rgb(0xff, 0xff, 0xff);
+                    p.list = rgb(0xff, 0xff, 0xff);
+                    p.list_frame = rgb(0xe2, 0xe8, 0xf0);
+                    p.list_grid = rgb(0xf8, 0xfa, 0xfc);
+                    p.header = rgb(0xf8, 0xfa, 0xfc);
+                    p.header_line = rgb(0xe2, 0xe8, 0xf0);
+                    p.header_sep = rgb(0xe2, 0xe8, 0xf0);
+                    p.menubar = rgb(0xff, 0xff, 0xff);
+                    p.menubar_bottom = rgb(0xe2, 0xe8, 0xf0);
+                    p.menubar_line = rgb(0xe2, 0xe8, 0xf0);
+                    p.menubar_hot = rgb(0xf1, 0xf5, 0xf9);
+                    p.menubar_open = rgb(0xec, 0xfd, 0xf5);
+                    p.menu = rgb(0xff, 0xff, 0xff);
+                    p.menu_item = rgb(0xff, 0xff, 0xff);
+                    p.menu_hot = rgb(0xf1, 0xf5, 0xf9);
+                    p.menu_border = rgb(0xe2, 0xe8, 0xf0);
+                    p.menu_text = rgb(0x33, 0x41, 0x55);
+                    p.toolbar_hot = rgb(0xff, 0xff, 0xff);
+                    p.toolbar_pressed = rgb(0xf1, 0xf5, 0xf9);
+                    p.toolbar_hot_border = rgb(0xe2, 0xe8, 0xf0);
+                    p.tree = rgb(0xff, 0xff, 0xff);
+                    p.tree_frame = rgb(0xe2, 0xe8, 0xf0);
+                    p.caption = rgb(0xff, 0xff, 0xff);
+                    p.caption_text = rgb(0x33, 0x41, 0x55);
+                    p.caption_hot = rgb(0xf1, 0xf5, 0xf9);
+                    p.caption_close = rgb(0xf4, 0x3f, 0x5e);
+                    p.caption_close_text = rgb(0xff, 0xff, 0xff);
+                    p.chip_web = rgb(0x05, 0x96, 0x69);
+                    p.chip_torrent = rgb(0x63, 0x66, 0xf1);
+                    p.chip_text = rgb(0xff, 0xff, 0xff);
+                    p.progress_bar = rgb(0x10, 0xb9, 0x81);
+                    p.progress_track = rgb(0xf1, 0xf5, 0xf9);
+                }
+                p
+            }
         }
     };
 }
@@ -341,6 +451,25 @@ macro_rules! metrics {
         impl Metrics {
             pub const CLASSIC: Self = Self { $($field: $value,)* };
 
+            pub const MODERN: Self = {
+                let mut m = Self::CLASSIC;
+                m.control_radius = 12.0;
+                m.button_radius = 12.0;
+                m.part_radius = 8.0;
+                m.check_radius = 6.0;
+                m.flyout_radius = 16.0;
+                m.menu_item_radius = 8.0;
+                m.widget_radius = 12.0;
+                m.popup_radius = 16.0;
+                m.list_row = 48.0;
+                m.list_header = 36.0;
+                m.font_dialog = 11.0;
+                m.font_ui = 12.0;
+                m.font_ui_bold = 13.0;
+                m.font_title = 14.0;
+                m
+            };
+
             #[allow(dead_code)]
             pub fn get(&self, key: &str) -> Option<f32> {
                 match key {
@@ -519,6 +648,8 @@ pub enum CaptionLook {
     /// Mac OS X: a shaded grey bar, the title centred, small round gel buttons whose glyphs
     /// show under the pointer.
     Aqua,
+    /// Modern UI: a 40-point client-side header with an emerald gradient glyph, "Modern UI" pill, and rounded buttons.
+    Modern,
 }
 
 /// How the keyboard focus is drawn around a control.
@@ -540,6 +671,16 @@ impl Controls {
         scroll: ScrollLook::Overlay,
         caption: CaptionLook::System,
         focus: FocusLook::Dotted,
+        button: ButtonLook::Fluent,
+    };
+
+    pub const MODERN: Self = Self {
+        field_focus: FieldFocus::Ring,
+        check: CheckLook::Fluent,
+        progress: ProgressLook::Bar,
+        scroll: ScrollLook::Overlay,
+        caption: CaptionLook::Modern,
+        focus: FocusLook::Ring,
         button: ButtonLook::Fluent,
     };
 
@@ -574,6 +715,7 @@ impl Controls {
             ("caption", "luna") => self.caption = CaptionLook::Luna,
             ("caption", "aero") => self.caption = CaptionLook::Aero,
             ("caption", "aqua") => self.caption = CaptionLook::Aqua,
+            ("caption", "modern") => self.caption = CaptionLook::Modern,
             ("focus", "dotted") => self.focus = FocusLook::Dotted,
             ("focus", "ring") => self.focus = FocusLook::Ring,
             ("focus", "frame") => self.focus = FocusLook::Frame,
@@ -619,11 +761,23 @@ pub static CLASSIC: Theme = Theme {
     controls: Controls::CLASSIC,
 };
 
+/// The modern look matching Mister Download Manager 0.5.0 Modern UI.
+pub static MODERN: Theme = Theme {
+    id: Cow::Borrowed("modern"),
+    name: Cow::Borrowed("Modern UI"),
+    light: Palette::modern(false),
+    dark: Palette::modern(true),
+    metrics: Metrics::MODERN,
+    icons: IconStyle::Mono,
+    icon_set: Some(Cow::Borrowed("metro")),
+    controls: Controls::MODERN,
+};
+
 /// The built-in themes that don't change by themselves, the default first: the classic look
 /// (written out above), then the ones shipped as theme files (`assets/themes/`, in the format
 /// users write, so they double as examples). Native follows the system and is made when chosen
 /// (`crate::native`).
-pub fn builtins() -> [&'static Theme; 9] {
+pub fn builtins() -> [&'static Theme; 10] {
     static HIGH_CONTRAST: std::sync::LazyLock<Theme> = std::sync::LazyLock::new(|| {
         crate::themefile::builtin(
             "high-contrast",
@@ -662,6 +816,7 @@ pub fn builtins() -> [&'static Theme; 9] {
         &AERO,
         &AQUA,
         &EMERALD,
+        &MODERN,
     ]
 }
 

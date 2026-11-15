@@ -133,6 +133,11 @@ pub const UPLOAD: usize = 12;
 pub const DEFAULT_WIDTHS: [f32; COLS] = [
     150.0, 20.0, 75.0, 132.0, 75.0, 95.0, 65.0, 200.0, 145.0, 62.0, 64.0, 92.0, 100.0,
 ];
+
+/// Modern UI default column widths matching mister_download_manager_0_5_0.html.
+pub const MODERN_DEFAULT_WIDTHS: [f32; COLS] = [
+    240.0, 40.0, 112.0, 144.0, 112.0, 128.0, 112.0, 200.0, 176.0, 96.0, 64.0, 92.0, 100.0,
+];
 /// Default display order: Source first, then IDM's, a torrent's three columns after its rate, and
 /// Added after Last Try Date.
 const DEFAULT_ORDER: [usize; COLS] = [SOURCE, 0, 1, 2, 3, 4, 5, UPLOAD, PEERS, RATIO, 6, ADDED, 7];
@@ -581,10 +586,25 @@ pub fn show(
         outer.right() - 1.0,
         outer.bottom() - 1.0,
     );
-    winui::solid(&p, screen(outer), FRAME());
-    fill(&p, l + 1.0, t + 1.0, r - 1.0, b - 1.0, BG());
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    if is_modern && (st.widths[0] - DEFAULT_WIDTHS[0]).abs() < 1.0 {
+        st.widths = MODERN_DEFAULT_WIDTHS;
+    }
+    let card_radius = if is_modern { 14.0 } else { 0.0 };
+    if is_modern {
+        p.rect_filled(screen(outer), card_radius, BG());
+        p.rect_stroke(
+            screen(outer),
+            card_radius,
+            egui::Stroke::new(1.0, FRAME()),
+            egui::StrokeKind::Inside,
+        );
+    } else {
+        winui::solid(&p, screen(outer), FRAME());
+        fill(&p, l + 1.0, t + 1.0, r - 1.0, b - 1.0, BG());
+    }
     let (cl, ct, cr, cb) = (l + 2.0, t + 2.0, r - 2.0, b - 2.0);
-    let font = winui::tahoma();
+    let font = if is_modern { winui::segoe() } else { winui::tahoma() };
     // Status at its default width follows the font and the language (#736): a few words to
     // measure, kept by egui from frame to frame.
     if st.status_fits {
@@ -807,9 +827,9 @@ pub fn show(
             let color = if filtered {
                 FILTER_ON()
             } else if hovered || open {
-                SORT_ARROW()
+                if is_modern { Color32::from_rgb(51, 65, 85) } else { SORT_ARROW() }
             } else {
-                SORT_ARROW().gamma_multiply(0.45)
+                if is_modern { Color32::from_rgb(148, 163, 184) } else { SORT_ARROW().gamma_multiply(0.45) }
             };
             if !roomy {
                 p.rect_filled(screen(fr), crate::theme::metrics().part_radius, HEADER_BG());
@@ -819,15 +839,19 @@ pub fn show(
                 arrow_room += 14.0;
             }
         }
-        let full = crate::i18n::tc("column", TITLES[*c]);
-        let label = winui::ellipsize(&p, &font, full, x1 - x0 - 10.0 - arrow_room);
+        let full = if is_modern {
+            crate::i18n::tc("column", TITLES[*c]).to_uppercase()
+        } else {
+            crate::i18n::tc("column", TITLES[*c]).to_owned()
+        };
+        let label = winui::ellipsize(&p, &font, &full, x1 - x0 - 10.0 - arrow_room);
         // A cut title shows whole under the pointer; the one-letter Q says what it is.
         if hovered && st.drag.is_none() {
             let tip = if TITLES[*c] == "Q" {
                 // i18n: tooltip of the narrow "Q" column's title
                 Some(crate::i18n::tc("column", "Queue"))
             } else {
-                (label != full).then_some(full)
+                (label != full).then_some(full.as_str())
             };
             if let Some(tip) = tip {
                 hresp.clone().on_hover_text_at_pointer(tip);
@@ -837,7 +861,8 @@ pub fn show(
             *x0..=*x1,
             ct..=ct + header_h(),
         )));
-        text_font(&clip, font.clone(), x0 + 6.0, ct + 15.0, &label, TEXT());
+        let text_y = if is_modern { ct + 22.0 } else { ct + 15.0 };
+        text_font(&clip, font.clone(), x0 + 6.0, text_y, &label, TEXT());
     }
 
     // ---- body ------------------------------------------------------------------------------
@@ -961,6 +986,7 @@ pub fn show(
         }
     };
     expose_out_of_view(reach.start..reach.end.min(first));
+    let hover_pos = resp.hover_pos().map(english);
     for k in 0..visible {
         let idx = first + k;
         let top = body_top + k as f32 * row_h() - offset;
@@ -971,10 +997,37 @@ pub fn show(
             // The focused row's dotted outline only once the keyboard is in use, as every
             // control's focus (winui::keyboard_in_use).
             let has_focus = focus == Some(idx) && st.focused && keys_in_use;
-            if sel || has_focus {
+            let (right, bottom) = (last_right - 1.0, top + row_h() - 2.0);
+            let is_hovered = hover_pos.is_some_and(|p| p.y >= top && p.y < top + row_h() && p.x >= cl && p.x <= last_right);
+            if is_modern {
+                let pill = Rect::from_min_max(
+                    pos2(cl + 3.0, top + 2.0),
+                    pos2(right - 2.0, bottom),
+                );
+                if sel || picked {
+                    let sel_bg = if is_hovered {
+                        if crate::theme::dark() {
+                            Color32::from_rgba_unmultiplied(16, 185, 129, 45)
+                        } else {
+                            Color32::from_rgba_unmultiplied(16, 185, 129, 36)
+                        }
+                    } else if crate::theme::dark() {
+                        Color32::from_rgba_unmultiplied(16, 185, 129, 30)
+                    } else {
+                        Color32::from_rgba_unmultiplied(16, 185, 129, 22)
+                    };
+                    bp.rect_filled(winui::rect(pill), 8.0, sel_bg);
+                } else if is_hovered {
+                    let hover_c = if crate::theme::dark() {
+                        Color32::from_rgb(51, 65, 85)
+                    } else {
+                        Color32::from_rgb(241, 245, 249)
+                    };
+                    bp.rect_filled(winui::rect(pill), 8.0, hover_c);
+                }
+            } else if sel || has_focus {
                 // The row above its grid line; the focused row has a dotted outline (every other
                 // pixel), in the fill's inverse on a selected row. Both modes alike.
-                let (right, bottom) = (last_right - 1.0, top + row_h() - 2.0);
                 if sel {
                     fill(&bp, cl, top, right, bottom, SELECTED());
                 }
@@ -989,7 +1042,6 @@ pub fn show(
             } else if picked {
                 // Unfocused (Find, Properties, a menu has the keys): still shown, in the inactive
                 // selection grey, as Explorer shows it, so what a command acts on stays visible.
-                let bottom = top + row_h() - 2.0;
                 fill(
                     &bp,
                     cl,
@@ -1000,10 +1052,66 @@ pub fn show(
                 );
             }
             for (c, x0, x1) in &cols {
+                let icon_y = top + if is_modern { (row_h() - 16.0) / 2.0 } else { 0.0 };
                 // The file-type icon sits in the File Name column, wherever it is.
                 let tx = if *c == 0 {
-                    icons.paint_in(ui, &bp, row.icon.clone(), pos2(x0 + 4.0, top));
-                    x0 + 22.0
+                    if is_modern {
+                        let badge_s = 32.0;
+                        let badge_y = top + (row_h() - badge_s) / 2.0;
+                        let badge_rect = Rect::from_min_size(pos2(x0 + 8.0, badge_y), egui::vec2(badge_s, badge_s));
+                        let ext = row.cells[0].rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+                        let (bg, border, fg) = match ext.as_str() {
+                            "mp4" | "mkv" | "avi" | "mov" | "webm" => if crate::theme::dark() {
+                                (Color32::from_rgba_premultiplied(168, 85, 247, 30), Color32::from_rgba_premultiplied(168, 85, 247, 60), Color32::from_rgb(192, 132, 252))
+                            } else {
+                                (Color32::from_rgb(250, 245, 255), Color32::from_rgb(243, 232, 255), Color32::from_rgb(147, 51, 234))
+                            },
+                            "pdf" => if crate::theme::dark() {
+                                (Color32::from_rgba_premultiplied(244, 63, 94, 30), Color32::from_rgba_premultiplied(244, 63, 94, 60), Color32::from_rgb(251, 113, 133))
+                            } else {
+                                (Color32::from_rgb(255, 241, 242), Color32::from_rgb(255, 228, 230), Color32::from_rgb(225, 29, 72))
+                            },
+                            "zip" | "rar" | "7z" | "tar" | "gz" => if crate::theme::dark() {
+                                (Color32::from_rgba_premultiplied(245, 158, 11, 30), Color32::from_rgba_premultiplied(245, 158, 11, 60), Color32::from_rgb(251, 191, 36))
+                            } else {
+                                (Color32::from_rgb(255, 251, 235), Color32::from_rgb(254, 243, 199), Color32::from_rgb(217, 119, 6))
+                            },
+                            "mp3" | "wav" | "flac" | "aac" | "ogg" => if crate::theme::dark() {
+                                (Color32::from_rgba_premultiplied(14, 165, 233, 30), Color32::from_rgba_premultiplied(14, 165, 233, 60), Color32::from_rgb(56, 189, 248))
+                            } else {
+                                (Color32::from_rgb(240, 249, 255), Color32::from_rgb(224, 242, 254), Color32::from_rgb(2, 132, 199))
+                            },
+                            "msi" | "exe" | "iso" | "dmg" => if crate::theme::dark() {
+                                (Color32::from_rgba_premultiplied(99, 102, 241, 30), Color32::from_rgba_premultiplied(99, 102, 241, 60), Color32::from_rgb(129, 140, 248))
+                            } else {
+                                (Color32::from_rgb(238, 242, 255), Color32::from_rgb(224, 231, 255), Color32::from_rgb(79, 70, 229))
+                            },
+                            _ => if crate::theme::dark() {
+                                (Color32::from_rgba_premultiplied(148, 163, 184, 25), Color32::from_rgba_premultiplied(148, 163, 184, 50), Color32::from_rgb(148, 163, 184))
+                            } else {
+                                (Color32::from_rgb(241, 245, 249), Color32::from_rgb(226, 232, 240), Color32::from_rgb(71, 85, 105))
+                            },
+                        };
+                        bp.rect_filled(winui::rect(badge_rect), 8.0, bg);
+                        bp.rect_stroke(winui::rect(badge_rect), 8.0, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
+                        if ext == "pdf" {
+                            let pdf_font = egui::FontId::new(10.0, egui::FontFamily::Proportional);
+                            text_font(&bp, pdf_font, badge_rect.left() + 5.5, badge_rect.top() + 20.0, "PDF", fg);
+                        } else {
+                            let icon_pos = badge_rect.center() - egui::vec2(8.0, 8.0);
+                            icons.paint_in(ui, &bp, row.icon.clone(), icon_pos);
+                        }
+                        x0 + 48.0
+                    } else {
+                        icons.paint_in(ui, &bp, row.icon.clone(), pos2(x0 + 4.0, icon_y));
+                        x0 + 24.0
+                    }
+                } else if is_modern && *c == 1 {
+                    let value = cell_text(*c, &row.cells[*c]);
+                    let cw = winui::text_width_font(&bp, font.clone(), &value);
+                    x0 + ((x1 - x0 - cw) / 2.0).max(4.0)
+                } else if is_modern {
+                    x0 + 10.0
                 } else {
                     x0 + 6.0
                 };
@@ -1012,7 +1120,7 @@ pub fn show(
                         ui,
                         &bp,
                         IconKey::Silk("page_white_stack"),
-                        pos2(x0 + 2.0, top),
+                        pos2(x0 + 2.0, icon_y),
                     );
                 }
                 let cell = Rect::from_min_max(pos2(*x0, top), pos2(*x1 - 1.0, top + row_h()));
@@ -1061,14 +1169,61 @@ pub fn show(
                 let clip = bp.with_clip_rect(screen(cell.intersect(body)));
                 // A failed download's Status and Description (the reason) in the error colour.
                 let failed = row.status_group == "Error" && (*c == 3 || *c == 7);
-                let ink = if sel {
+                let ink = if !is_modern && sel {
                     winui::SELECTION_TEXT()
                 } else if failed {
                     winui::ERROR()
                 } else {
                     TEXT()
                 };
-                text_font(&clip, font.clone(), tx, top + 12.0, &s, ink);
+                if is_modern && *c == 3 {
+                    if row.status_group == "Complete" {
+                        let dot_x = tx + 3.0;
+                        let dot_y = top + row_h() / 2.0;
+                        clip.circle_filled(pos2(dot_x, dot_y), 3.5, egui::Color32::from_rgb(16, 185, 129));
+                        let text_y = top + (row_h() / 2.0) + 4.5;
+                        text_font(&clip, font.clone(), tx + 14.0, text_y, &s, ink);
+                        continue;
+                    } else if row.status_group == "Downloading" {
+                        let text_y = top + (row_h() / 2.0) - 3.5;
+                        text_font(&clip, font.clone(), tx, text_y, &s, ink);
+                        let bar_w = (x1 - tx - 10.0).max(16.0);
+                        let bar_y = top + (row_h() / 2.0) + 4.5;
+                        let bar_h = 4.0;
+                        let bar_rect = egui::Rect::from_min_size(pos2(tx, bar_y), egui::vec2(bar_w, bar_h));
+                        let track_bg = if crate::theme::dark() {
+                            egui::Color32::from_rgb(30, 41, 59)
+                        } else {
+                            egui::Color32::from_rgb(226, 232, 240)
+                        };
+                        clip.rect_filled(winui::rect(bar_rect), 2.0, track_bg);
+                        let pct = s
+                            .split('%')
+                            .next()
+                            .and_then(|p| p.trim().parse::<f32>().ok())
+                            .map(|p| (p / 100.0).clamp(0.01, 1.0))
+                            .unwrap_or(0.25);
+                        let fill_rect = egui::Rect::from_min_size(pos2(tx, bar_y), egui::vec2(bar_w * pct, bar_h));
+                        clip.rect_filled(winui::rect(fill_rect), 2.0, egui::Color32::from_rgb(16, 185, 129));
+                        continue;
+                    } else if row.status_group == "Error" {
+                        let dot_x = tx + 3.0;
+                        let dot_y = top + row_h() / 2.0;
+                        clip.circle_filled(pos2(dot_x, dot_y), 3.5, egui::Color32::from_rgb(244, 63, 94));
+                        let text_y = top + (row_h() / 2.0) + 4.5;
+                        text_font(&clip, font.clone(), tx + 14.0, text_y, &s, winui::ERROR());
+                        continue;
+                    } else {
+                        let dot_x = tx + 3.0;
+                        let dot_y = top + row_h() / 2.0;
+                        clip.circle_filled(pos2(dot_x, dot_y), 3.5, egui::Color32::from_rgb(245, 158, 11));
+                        let text_y = top + (row_h() / 2.0) + 4.5;
+                        text_font(&clip, font.clone(), tx + 14.0, text_y, &s, ink);
+                        continue;
+                    }
+                }
+                let text_y = top + if is_modern { (row_h() / 2.0) + 4.5 } else { 12.0 };
+                text_font(&clip, font.clone(), tx, text_y, &s, ink);
             }
         }
         // The grid line is the item's own last row (top + 16), so icons are not clipped; in
@@ -1076,7 +1231,16 @@ pub fn show(
         let gy = top + row_h() - 1.0;
         // An empty list has no grid (the empty state stands alone).
         if !rows.is_empty() {
-            fill(&bp, cl, gy, rr, gy, GRID_H());
+            if is_modern {
+                let grid_c = if crate::theme::dark() {
+                    egui::Color32::from_rgb(30, 41, 59)
+                } else {
+                    egui::Color32::from_rgb(241, 245, 249)
+                };
+                fill(&bp, cl, gy, rr, gy, grid_c);
+            } else {
+                fill(&bp, cl, gy, rr, gy, GRID_H());
+            }
         }
     }
     expose_out_of_view(reach.start.max(first + visible)..reach.end);
@@ -1089,7 +1253,9 @@ pub fn show(
     for (_, _, x1) in cols.iter().filter(|_| !rows.is_empty()) {
         // On the column's last pixel, under its header's divider: one straight line from the
         // header down (#924: it sat a pixel to the right, on the next column's first).
-        fill(&bp, *x1, body_top, *x1, rb, GRID_V_RIGHT());
+        if !is_modern {
+            fill(&bp, *x1, body_top, *x1, rb, GRID_V_RIGHT());
+        }
     }
     // While a column is dragged: a translucent copy of its header follows the pointer, and a
     // 2 px mark shows where it will land.
@@ -1382,39 +1548,63 @@ fn chip(
     } else {
         crate::theme::colors().chip_web
     };
-    // The cell holds the English key (filters match on it); the chip shows it translated.
     let full = crate::i18n::t(label);
-    // Room: the pill starts 5 px in, pads its text 6 px each side, and ends 3 px before the cell.
-    let label = &winui::ellipsize(p, font, full, (x1 - x0 - 5.0 - 12.0 - 3.0).max(0.0));
-    let w = winui::text_width_font(p, font.clone(), label).round();
-    let pill = Rect::from_min_size(
-        pos2(x0 + 5.0, top + 2.0),
-        egui::vec2(w + 12.0, row_h() - 4.0),
-    );
-    p.rect_filled(winui::rect(pill), (row_h() - 4.0) / 2.0, fill);
-    text_font(
-        p,
-        font.clone(),
-        pill.left() + 6.0,
-        top + 12.0,
-        label,
-        crate::theme::colors().chip_text,
-    );
-    label != full
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    if is_modern {
+        let chip_font = egui::FontId::new(10.5, egui::FontFamily::Proportional);
+        let label = &winui::ellipsize(p, &chip_font, full, (x1 - x0 - 16.0).max(0.0));
+        let w = winui::text_width_font(p, chip_font.clone(), label).round();
+        let pill_h = 24.0;
+        let pill = Rect::from_min_size(
+            pos2(x0 + 10.0, top + (row_h() - pill_h) / 2.0),
+            egui::vec2(w + 18.0, pill_h),
+        );
+        p.rect_filled(winui::rect(pill), 12.0, fill);
+        let text_y = pill.top() + (pill_h / 2.0) + 4.0;
+        text_font(
+            p,
+            chip_font,
+            pill.left() + 9.0,
+            text_y,
+            label,
+            crate::theme::colors().chip_text,
+        );
+        label != full
+    } else {
+        let label = &winui::ellipsize(p, font, full, (x1 - x0 - 5.0 - 12.0 - 3.0).max(0.0));
+        let w = winui::text_width_font(p, font.clone(), label).round();
+        let pill = Rect::from_min_size(
+            pos2(x0 + 5.0, top + 2.0),
+            egui::vec2(w + 12.0, row_h() - 4.0),
+        );
+        p.rect_filled(winui::rect(pill), (row_h() - 4.0) / 2.0, fill);
+        let text_y = pill.top() + (pill.height() / 2.0) + 4.5;
+        text_font(
+            p,
+            font.clone(),
+            pill.left() + 6.0,
+            text_y,
+            label,
+            crate::theme::colors().chip_text,
+        );
+        label != full
+    }
 }
 
 /// Where a column's funnel sits in its header: at the right, left of the sort chevron.
 fn funnel_rect(st: &ListState, col: usize, x0: f32, x1: f32, ct: f32) -> Rect {
     let sorted = st.sort.is_some_and(|(sc, _)| sc == col);
-    let right = x1 - if sorted { 18.0 } else { 4.0 };
+    let right = x1 - if sorted { 18.0 } else { 8.0 };
     let left = (right - 12.0).max(x0 + 2.0);
-    Rect::from_min_max(pos2(left, ct + 6.0), pos2(right, ct + header_h() - 6.0))
+    let h = header_h();
+    let cy = ct + h / 2.0;
+    Rect::from_min_max(pos2(left, cy - 6.0), pos2(right, cy + 6.0))
 }
 
 /// A small funnel: a triangle over a stem, in English rect `rc`.
 fn funnel(p: &egui::Painter, rc: Rect, color: Color32) {
     let rc = winui::rect(rc);
-    let (cx, top) = (rc.center().x, rc.top() + 1.0);
+    let (cx, top) = (rc.center().x, rc.center().y - 5.0);
     p.add(egui::Shape::convex_polygon(
         vec![
             pos2(cx - 5.0, top),
@@ -1425,7 +1615,7 @@ fn funnel(p: &egui::Painter, rc: Rect, color: Color32) {
         color,
         egui::Stroke::NONE,
     ));
-    winui::fill(p, cx - 1.0, top + 5.0, cx, top + 10.0, color);
+    winui::fill(p, cx - 1.0, top + 5.0, cx + 1.0, top + 10.0, color);
 }
 
 const FILTER_W: f32 = 230.0;

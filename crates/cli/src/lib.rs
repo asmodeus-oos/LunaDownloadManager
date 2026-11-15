@@ -380,7 +380,7 @@ fn js_runtime_note() -> String {
 }
 
 /// The launcher's name, which the commands' help and messages show.
-pub const NAME: &str = "misterdownloadmanager-cli";
+pub const NAME: &str = "lunadownloadmanager-cli";
 
 /// The app's program, started for the command line.
 pub struct Launch {

@@ -713,7 +713,7 @@ impl About {
         window(
             ctx,
             "about",
-            "About Mister Download Manager",
+            "About Luna Download Manager",
             [420.0, 236.0 + extra],
             false,
             winui::BG(),
@@ -729,7 +729,7 @@ impl About {
                     &p,
                     o.x + 80.0,
                     o.y + 28.0,
-                    crate::i18n::t("Mister Download Manager"),
+                    crate::i18n::t("Luna Download Manager"),
                     ink,
                 );
                 let version = crate::i18n::fmt(

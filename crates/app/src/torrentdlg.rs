@@ -388,11 +388,13 @@ impl TorrentDialog {
                 Err(e) => self.error = Some(e),
             }
         }
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [680.0, 560.0] } else { [600.0, 460.0] };
         let out = window(
             ctx,
             "add-torrent",
             "Add torrent",
-            [600.0, 460.0],
+            dlg_size,
             false,
             winui::BG(),
             |ui, o| self.body(ui, o, rt),
@@ -455,6 +457,197 @@ impl TorrentDialog {
         // i18n: noun: label before the torrent file or magnet link
         let source_label = crate::i18n::t("Torrent");
         let folder_label = crate::i18n::t("Save to");
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+
+        if is_modern {
+            let dark = crate::theme::dark();
+            let card_bg = if dark {
+                Color32::from_rgb(30, 41, 59)
+            } else {
+                Color32::WHITE
+            };
+            let card_border = if dark {
+                Color32::from_rgb(51, 65, 85)
+            } else {
+                Color32::from_rgb(226, 232, 240)
+            };
+            let title_c = if dark {
+                Color32::from_rgb(241, 245, 249)
+            } else {
+                Color32::from_rgb(15, 23, 42)
+            };
+            let card_rect = Rect::from_min_max(
+                pos2(o.x + 12.0, o.y + 10.0),
+                pos2(o.x + 668.0, o.y + 550.0),
+            );
+            p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+            p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+
+            // Header
+            winui::text_font(&p, winui::segoe(), o.x + 28.0, o.y + 30.0, crate::i18n::t("Torrent / Magnet Link"), title_c);
+
+            // Source input: height 36.0, padded
+            let edit = winui::edit(ui, r(o, 28.0, 38.0, 474.0, 36.0), &mut self.source, !busy, false);
+            if !self.focused {
+                edit.request_focus();
+                self.focused = true;
+            }
+            let browse = winui::button(ui, r(o, 510.0, 38.0, 38.0, 36.0), "...", kind(!busy, false), false, None).clicked();
+            if browse && !busy {
+                let kind = crate::i18n::t("Torrent files").to_owned();
+                let title = crate::i18n::t("Open torrent file").to_owned();
+                winui::start_pick(ui.ctx(), "torrent-file", move || {
+                    crate::winui::file_dialog(&title).add_filter(kind, &["torrent"]).pick_file()
+                });
+            }
+            if let Some(f) = winui::picked(ui.ctx(), "torrent-file") {
+                self.source = f.display().to_string();
+                self.look_up(rt, ui.ctx());
+            }
+            let can_look = !busy && !self.source.trim().is_empty();
+            let look = winui::button(
+                ui,
+                r(o, 556.0, 38.0, 96.0, 36.0),
+                if busy { crate::i18n::mark("Stop") } else { crate::i18n::mark("Look up") },
+                kind(can_look || busy, self.meta.is_none()),
+                false,
+                None,
+            )
+            .clicked()
+                || (edit.has_focus() && can_look && winui::enter_pressed(ui) && winui::take_key(ui, egui::Key::Enter));
+            if look && busy {
+                if let Some(t) = self.lookup_task.take() {
+                    t.abort();
+                }
+                self.lookup = None;
+                self.started = None;
+            } else if look && can_look {
+                self.look_up(rt, ui.ctx());
+            }
+
+            // Status row
+            let line = o.y + 90.0;
+            if busy {
+                spinner(ui, pos2(o.x + 36.0, line - 4.0), 6.0);
+                let secs = self.started.map_or(0, |s| s.elapsed().as_secs());
+                let msg = if self.from_magnet {
+                    crate::i18n::fmt(
+                        crate::i18n::t("Getting the file list from peers...  {n} s"),
+                        &[("n", &crate::i18n::integer(secs))],
+                    )
+                } else {
+                    crate::i18n::t("Reading the torrent...").to_owned()
+                };
+                text(&p, o.x + 50.0, line, &msg, winui::TEXT());
+            } else if let Some(e) = &self.error {
+                let (rect, cut) = winui::text_fit(&p, o.x + 28.0, line, e, winui::ERROR(), o.x + 652.0);
+                if cut {
+                    winui::full_on_hover(ui, rect, "torrent-error", e);
+                }
+            } else if let Some(m) = &self.meta {
+                let shown = m.files.iter().filter(|f| !f.padding).count();
+                let summary = crate::i18n::fmt(
+                    crate::i18n::t("{name}  ({files}, {size})"),
+                    &[
+                        ("name", &m.name),
+                        ("files", &crate::i18n::tn(shown as u64, "{n} file", "{n} files")),
+                        ("size", &crate::dialogs::dialog_size(m.total())),
+                    ],
+                );
+                let kind_icon = if shown > 1 {
+                    crate::fileicons::Kind::Folder
+                } else {
+                    crate::fileicons::Kind::File(&m.name)
+                };
+                crate::fileicons::paint_at(ui, &p, kind_icon, egui::pos2(o.x + 28.0, line - 12.0), 16.0);
+                let x = o.x + 28.0 + crate::fileicons::INDENT;
+                let (rect, cut) = winui::text_fit(&p, x, line, &summary, winui::TEXT(), o.x + 652.0);
+                if cut {
+                    winui::full_on_hover(ui, rect, "torrent-name", &summary);
+                }
+            }
+
+            // File tree list
+            self.file_list(ui, r(o, 28.0, 108.0, 624.0, 240.0));
+
+            // Select all / none
+            let has = self.meta.is_some();
+            if winui::button(ui, r(o, 28.0, 358.0, 100.0, 30.0), "Select all", kind(has, false), false, None).clicked()
+                && let Some(m) = &self.meta
+            {
+                self.chosen = m.files.iter().map(|f| !f.padding).collect();
+            }
+            if winui::button(ui, r(o, 136.0, 358.0, 100.0, 30.0), "Select none", kind(has, false), false, None).clicked() {
+                self.chosen.iter_mut().for_each(|c| *c = false);
+            }
+            let (count, bytes) = self.selection();
+            if has {
+                winui::text_right(
+                    &p,
+                    o.x + 652.0,
+                    o.y + 378.0,
+                    &crate::i18n::fmt(
+                        crate::i18n::t("Selected: {files}, {size}"),
+                        &[
+                            ("files", &crate::i18n::tn(count as u64, "{n} file", "{n} files")),
+                            ("size", &crate::dialogs::dialog_size(bytes)),
+                        ],
+                    ),
+                    winui::TEXT(),
+                );
+            }
+
+            // Folder destination
+            winui::text_font(&p, winui::segoe(), o.x + 28.0, o.y + 408.0, folder_label, title_c);
+            if winui::edit(ui, r(o, 28.0, 418.0, 576.0, 36.0), &mut self.folder, true, false).changed() {
+                self.folder_edited = true;
+            }
+            if winui::button(ui, r(o, 612.0, 418.0, 40.0, 36.0), "...", ButtonKind::Normal, false, None).clicked() {
+                let from = self.folder.clone();
+                winui::start_pick(ui.ctx(), "torrent-folder", move || {
+                    rfd::FileDialog::new().set_directory(from).pick_folder()
+                });
+            }
+            if let Some(d) = winui::picked(ui.ctx(), "torrent-folder") {
+                self.folder = d.display().to_string();
+                self.folder_edited = true;
+            }
+            if let Some(m) = &self.meta {
+                let goes = m.folder_in(&crate::dialogs::resolve_path(&self.folder));
+                let s = crate::i18n::fmt(
+                    crate::i18n::t("Files go to: {folder}"),
+                    &[("folder", &crate::i18n::ltr(&goes.display().to_string()))],
+                );
+                let (rect, cut) = winui::text_fit(&p, o.x + 28.0, o.y + 472.0, &s, winui::MUTED(), o.x + 652.0);
+                if cut {
+                    winui::full_on_hover(ui, rect, "torrent-goes", &s);
+                }
+            }
+
+            // Bottom actions
+            winui::checkbox_until(
+                ui,
+                pos2(o.x + 28.0, o.y + 510.0),
+                &mut self.in_order,
+                "Download in order",
+                has,
+                Some(o.x + 310.0),
+            );
+            let ready = has && count > 0 && !self.folder.trim().is_empty() && !busy;
+            let cancel = winui::button(ui, r(o, 320.0, 498.0, 100.0, 36.0), "Cancel", ButtonKind::Normal, false, None).clicked();
+            let later = winui::button(ui, r(o, 428.0, 498.0, 100.0, 36.0), "Later", kind(ready, false), false, None).clicked();
+            let now = winui::button(ui, r(o, 536.0, 498.0, 116.0, 36.0), "Download Now", kind(ready, true), false, None).clicked()
+                || (ready && winui::enter_pressed(ui));
+            if cancel || winui::escape_pressed(ui) {
+                return Outcome::Closed;
+            }
+            if ready && (now || later) {
+                self.start_now = Some(now);
+                return Outcome::Done(());
+            }
+            return Outcome::Open;
+        }
+
         // The fields start after the longer label (German "Speichern unter").
         let fx = winui::label_column(&p, 11.0, &[source_label, folder_label], 70.0);
         text(&p, o.x + 11.0, o.y + 23.0, source_label, winui::TEXT());
@@ -843,12 +1036,14 @@ impl TorrentDialog {
         let (tree, open, chosen) = (&self.tree, &self.open, &self.chosen);
         let mut toggle = None;
         let mut flip_open = None;
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let row_h = if is_modern { 24.0 } else { ROW };
         let ev = winui::row_list(
             ui,
             "torrent-tree",
             winui::rect(body.expand(1.0)),
             rows.len(),
-            ROW,
+            row_h,
             &mut self.rows,
             |ui, clip, k, row, look| {
                 let n = rows[k];
@@ -857,7 +1052,7 @@ impl TorrentDialog {
                 let x = row.left() + 6.0 + 16.0 * node.depth as f32;
                 let is_dir = node.file.is_none();
                 if is_dir {
-                    let arrow = Rect::from_min_size(pos2(x, top), vec2(14.0, ROW));
+                    let arrow = Rect::from_min_size(pos2(x, top), vec2(14.0, row_h));
                     let ar = ui.interact(
                         winui::rect(arrow),
                         egui::Id::unique(("torrent-arrow", n)),
@@ -866,10 +1061,12 @@ impl TorrentDialog {
                     if ar.clicked() {
                         flip_open = Some(n);
                     }
-                    winui::tree_expander(clip, pos2(x + 4.0, top + 5.0), open[n]);
+                    let arrow_y = if is_modern { top + (row_h - 9.0) / 2.0 } else { top + 5.0 };
+                    winui::tree_expander(clip, pos2(x + 4.0, arrow_y), open[n]);
                 }
                 let state = tri_state(node, chosen);
-                let glyph = pos2(x + 16.0, top + 2.0);
+                let glyph_y = if is_modern { top + (row_h - 13.0) / 2.0 } else { top + 2.0 };
+                let glyph = pos2(x + 16.0, glyph_y);
                 let mut on = state == Tri::All;
                 let size = crate::dialogs::dialog_size(node.size);
                 look.name = format!("{}, {size}", node.name);
@@ -890,18 +1087,19 @@ impl TorrentDialog {
                     ui,
                     clip,
                     kind,
-                    pos2(glyph.x + 19.0, top + (ROW - 16.0) / 2.0),
+                    pos2(glyph.x + 19.0, top + (row_h - 16.0) / 2.0),
                     16.0,
                 );
                 let left = glyph.x + 19.0 + crate::fileicons::INDENT;
                 // A name keeps its own direction (cut inside its isolate), whole on hover.
                 let name = crate::i18n::isolate(&node.name);
                 let max = row.right() - 8.0 - size_w - 12.0;
+                let text_y = if is_modern { top + (row_h / 2.0) + 4.0 } else { top + 12.0 };
                 winui::fit(
                     ui,
                     clip,
                     left,
-                    top + 12.0,
+                    text_y,
                     &name,
                     look.ink,
                     max,
@@ -912,7 +1110,7 @@ impl TorrentDialog {
                 } else {
                     look.ink
                 };
-                winui::text_right(clip, row.right() - 8.0, top + 12.0, &size, size_color);
+                winui::text_right(clip, row.right() - 8.0, text_y, &size, size_color);
             },
         );
         let is_dir = |k: usize| self.tree[rows[k]].file.is_none();
@@ -1147,7 +1345,7 @@ impl TorrentSettings {
                     ui,
                     pos2(o.x + 14.0, o.y + 108.0),
                     &mut self.assoc,
-                    "Open magnet links and .torrent files with Mister Download Manager",
+                    "Open magnet links and .torrent files with Luna Download Manager",
                     true,
                 );
                 winui::fit(

@@ -1,5 +1,7 @@
 # Build output
 /target/
+graphify-out/
+.planning/
 
 # Local, untracked study material (vendor docs extracted for reading)
 /.study/

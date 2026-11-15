@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use egui::{Pos2, Ui, ViewportBuilder, ViewportId, vec2};
+use egui::{Color32, Pos2, Rect, Stroke, Ui, ViewportBuilder, ViewportId, pos2, vec2};
 use mdm_engine::ProbeInfo;
 use url::Url;
 
@@ -333,7 +333,7 @@ fn dialog_window<T>(
     // size; the frame (win32::thin_frame) gives the caption to the client.
     let drawn = drawn_captions();
     let caption_h = if drawn {
-        crate::winui::caption::CAPTION_H
+        crate::winui::caption::caption_h()
     } else {
         0.0
     };
@@ -372,11 +372,21 @@ fn dialog_window<T>(
         builder = builder.with_position(p);
     }
     crate::crash::window(id);
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    let window_bg = if is_modern {
+        if crate::theme::dark() {
+            Color32::from_rgb(15, 23, 42)
+        } else {
+            Color32::from_rgb(241, 245, 249)
+        }
+    } else {
+        bg
+    };
     let out = ctx.show_viewport_immediate(vid, builder, |ui, _| {
         // Painted in the pass that closes it too (see close_requested).
         let close = close_requested(ui);
         let out = egui::CentralPanel::no_frame()
-            .frame(egui::Frame::new().fill(bg))
+            .frame(egui::Frame::new().fill(window_bg))
             .show(ui, |ui| {
                 let origin = ui.max_rect().min;
                 // The window's width, laid out from the right in a right-to-left interface (the
@@ -506,8 +516,8 @@ pub fn drawn_title(
     buttons: &[(crate::winui::caption::CaptionButton, bool)],
     hwnd: Option<isize>,
 ) -> Option<crate::winui::caption::CaptionButton> {
-    use crate::winui::caption::CAPTION_H;
-    let rect = egui::Rect::from_min_size(o, egui::vec2(width, CAPTION_H));
+    let cap_h = crate::winui::caption::caption_h();
+    let rect = egui::Rect::from_min_size(o, egui::vec2(width, cap_h));
     let bar = crate::winui::caption::title_bar(ui, rect, title, buttons);
     #[cfg(windows)]
     if let Some(hwnd) = hwnd {
@@ -524,7 +534,7 @@ pub fn drawn_title(
         crate::win32::set_caption_hits(
             hwnd,
             crate::win32::CaptionHits {
-                strip_h: (CAPTION_H * ppp).round() as i32,
+                strip_h: (cap_h * ppp).round() as i32,
                 icon: px(bar.icon),
                 buttons: bar.buttons.iter().map(|r| px(*r)).collect(),
                 max_button: None,
@@ -542,7 +552,7 @@ pub fn drawn_title(
 /// paints nothing leaves a black window on screen until the window is destroyed (#207: one to
 /// several seconds on Linux).
 pub(crate) fn close_requested(ui: &Ui) -> bool {
-    ui.ctx().input(|i| i.viewport().close_requested())
+    ui.input(|i| i.viewport().close_requested())
 }
 
 /// Bring dialog `id` to the front with the keyboard focus once it shows (a window that opens by
@@ -684,15 +694,156 @@ impl AddUrl {
             self.fill_from_clipboard(&clip);
         }
         self.follow_site_login(site_login);
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [580.0, 240.0] } else { [560.0, 93.0] };
         window(
             ctx,
             "add-url",
             "Enter new address to download",
-            [560.0, 93.0],
+            dlg_size,
             false,
             winui::BG(),
             |ui, o| {
                 let p = ui.painter().clone();
+                if is_modern {
+                    let dark = crate::theme::dark();
+                    let card_bg = if dark {
+                        Color32::from_rgb(30, 41, 59)
+                    } else {
+                        Color32::WHITE
+                    };
+                    let card_border = if dark {
+                        Color32::from_rgb(51, 65, 85)
+                    } else {
+                        Color32::from_rgb(226, 232, 240)
+                    };
+                    let card_rect = Rect::from_min_max(
+                        pos2(o.x + 12.0, o.y + 10.0),
+                        pos2(o.x + 568.0, o.y + 230.0),
+                    );
+                    p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+                    p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+
+                    // Header / Label
+                    let font_bold = winui::segoe();
+                    let title_c = if dark { Color32::from_rgb(241, 245, 249) } else { Color32::from_rgb(15, 23, 42) };
+                    winui::text_font(&p, font_bold.clone(), o.x + 28.0, o.y + 32.0, crate::i18n::t("Download Address"), title_c);
+
+                    // Modern Address combo edit: height 36.0, padded
+                    let addr_rc = Rect::from_min_size(pos2(o.x + 28.0, o.y + 40.0), vec2(524.0, 36.0));
+                    let addr = winui::combo_edit(ui, winui::rect(addr_rc), &mut self.address);
+                    if addr.changed() {
+                        self.error = None;
+                    }
+                    if ui.memory(|m| m.focused().is_none()) {
+                        addr.request_focus();
+                    }
+                    if winui::combo_arrow(ui, winui::rect(addr_rc), "add-url", self.list_open).clicked()
+                        || winui::combo_keys(ui, &addr)
+                    {
+                        self.list_open = !self.list_open;
+                    }
+                    let at = self.history.iter().position(|h| *h == self.address.trim());
+                    if !self.list_open
+                        && let Some(i) = winui::history_keys(ui, &addr, self.history.len(), at)
+                    {
+                        self.address = self.history[i].clone();
+                        self.error = None;
+                    }
+                    winui::keep_keys(ui, &addr, false, true, self.list_open);
+                    let list_was_open = self.list_open;
+                    if self.list_open
+                        && let Some(i) = winui::drop_list(
+                            ui,
+                            "add-url-history",
+                            winui::rect(addr_rc),
+                            &self.history,
+                            crate::i18n::t("No addresses yet"),
+                            &mut self.list_open,
+                        )
+                    {
+                        self.address = self.history[i].clone();
+                        addr.request_focus();
+                    }
+
+                    // Authentication box
+                    let auth_card = Rect::from_min_size(pos2(o.x + 28.0, o.y + 86.0), vec2(524.0, 78.0));
+                    let auth_bg = if dark { Color32::from_rgb(15, 23, 42) } else { Color32::from_rgb(248, 250, 252) };
+                    p.rect_filled(winui::rect(auth_card), 10.0, auth_bg);
+                    p.rect_stroke(winui::rect(auth_card), 10.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+
+                    winui::checkbox(
+                        ui,
+                        pos2(o.x + 40.0, o.y + 94.0),
+                        &mut self.auth,
+                        "Use authorization",
+                        true,
+                    );
+                    let label_c = if self.auth {
+                        if dark { Color32::from_rgb(203, 213, 225) } else { Color32::from_rgb(71, 85, 105) }
+                    } else {
+                        winui::TEXT_DISABLED()
+                    };
+                    winui::text(&p, o.x + 40.0, o.y + 138.0, crate::i18n::t("Login"), label_c);
+                    winui::edit(
+                        ui,
+                        winui::rect(Rect::from_min_size(pos2(o.x + 80.0, o.y + 122.0), vec2(170.0, 28.0))),
+                        &mut self.login,
+                        self.auth,
+                        false,
+                    );
+                    winui::text(&p, o.x + 270.0, o.y + 138.0, crate::i18n::t("Password"), label_c);
+                    winui::edit(
+                        ui,
+                        winui::rect(Rect::from_min_size(pos2(o.x + 338.0, o.y + 122.0), vec2(200.0, 28.0))),
+                        &mut self.password,
+                        self.auth,
+                        true,
+                    );
+
+                    // Buttons
+                    let cancel = winui::button(
+                        ui,
+                        winui::rect(Rect::from_min_size(pos2(o.x + 342.0, o.y + 178.0), vec2(96.0, 36.0))),
+                        "Cancel",
+                        ButtonKind::Normal,
+                        false,
+                        None,
+                    )
+                    .clicked();
+                    let ok = winui::button(
+                        ui,
+                        winui::rect(Rect::from_min_size(pos2(o.x + 450.0, o.y + 178.0), vec2(102.0, 36.0))),
+                        "Download",
+                        ButtonKind::Default,
+                        false,
+                        None,
+                    )
+                    .clicked();
+
+                    if let Some(e) = &self.error {
+                        let red = winui::ERROR();
+                        winui::text_font(&p, winui::segoe(), o.x + 28.0, o.y + 200.0, e, red);
+                    }
+
+                    let enter = winui::enter_pressed(ui);
+                    if cancel || (!list_was_open && winui::escape_pressed(ui)) {
+                        return Outcome::Closed;
+                    }
+                    if ok || (enter && !list_was_open) {
+                        match crate::model::parse_address(&self.address) {
+                            Ok(url) if mdm_engine::supported(&url) || url.scheme() == "magnet" => {
+                                return Outcome::Done(NewUrl {
+                                    url,
+                                    login: self.typed_login(),
+                                });
+                            }
+                            _ => self.error = Some(crate::i18n::t("Invalid address").into()),
+                        }
+                    }
+                    return Outcome::Open;
+                }
+
                 // i18n: noun: the web address (URL)
                 winui::text(
                     &p,
@@ -1763,7 +1914,7 @@ fn cancel_waiting(ctx: &egui::Context, n: usize) -> Outcome<bool> {
     question(
         ctx,
         "cancel-waiting",
-        "Mister Download Manager",
+        "Luna Download Manager",
         [374.0, 100.0 + extra],
         false,
         winui::BG(),
@@ -1888,16 +2039,194 @@ impl Complete {
     pub fn show(&mut self, ctx: &egui::Context) -> Outcome<()> {
         let id = format!("complete-{}", self.id);
         self.seen |= notice_seen(ctx, &id);
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [560.0, 310.0] } else { [455.0, 215.0] };
         notice(
             ctx,
             &id,
             "Download complete",
-            [455.0, 215.0],
+            dlg_size,
             true,
             winui::BG(),
             !self.seen,
             |ui, o| {
                 let p = ui.painter().clone();
+                if is_modern {
+                    let dark = crate::theme::dark();
+                    let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+                    let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+                    let card_rect = Rect::from_min_max(pos2(o.x + 10.0, o.y + 8.0), pos2(o.x + 550.0, o.y + 300.0));
+                    p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+                    p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+
+                    // Success emerald badge
+                    let badge_rc = Rect::from_min_size(pos2(o.x + 24.0, o.y + 22.0), vec2(40.0, 40.0));
+                    p.rect_filled(winui::rect(badge_rc), 12.0, Color32::from_rgb(0x10, 0xb9, 0x81));
+                    let bc = badge_rc.center();
+                    let white_s = Stroke::new(2.2, Color32::WHITE);
+                    p.line_segment([pos2(bc.x - 6.0, bc.y), pos2(bc.x - 2.0, bc.y + 4.5)], white_s);
+                    p.line_segment([pos2(bc.x - 2.0, bc.y + 4.5), pos2(bc.x + 6.0, bc.y - 4.5)], white_s);
+
+                    // Header title & info
+                    let font_bold = winui::segoe();
+                    let title_c = if dark { Color32::from_rgb(241, 245, 249) } else { Color32::from_rgb(15, 23, 42) };
+                    winui::text_font(&p, font_bold, o.x + 74.0, o.y + 32.0, crate::i18n::t("Download complete"), title_c);
+
+                    let line = crate::i18n::fmt(
+                        crate::i18n::t("Downloaded {size} ({bytes} Bytes)"),
+                        &[
+                            ("size", &dialog_size(self.size)),
+                            ("bytes", &crate::i18n::integer(self.size)),
+                        ],
+                    );
+                    let sub_c = if dark { Color32::from_rgb(148, 163, 184) } else { Color32::from_rgb(100, 116, 139) };
+                    winui::text(&p, o.x + 74.0, o.y + 50.0, &line, sub_c);
+
+                    if !self.notices.is_empty() {
+                        winui::fit(
+                            ui,
+                            &p,
+                            o.x + 74.0,
+                            o.y + 68.0,
+                            &self.notices.join(" "),
+                            winui::ERROR(),
+                            o.x + 530.0,
+                            ("complete-notice", self.id),
+                        );
+                    }
+
+                    // Field 1: Address
+                    let label_c = if dark { Color32::from_rgb(203, 213, 225) } else { Color32::from_rgb(71, 85, 105) };
+                    winui::text(&p, o.x + 24.0, o.y + 80.0, crate::i18n::t("Address"), label_c);
+                    winui::readonly_field(
+                        ui,
+                        winui::rect(Rect::from_min_size(pos2(o.x + 24.0, o.y + 88.0), vec2(502.0, 32.0))),
+                        &self.url,
+                        winui::BG(),
+                        true,
+                        "complete-url",
+                    );
+
+                    // Field 2: Saved As
+                    winui::text(&p, o.x + 24.0, o.y + 130.0, crate::i18n::t("The file saved as"), label_c);
+                    winui::readonly_field(
+                        ui,
+                        winui::rect(Rect::from_min_size(pos2(o.x + 24.0, o.y + 138.0), vec2(502.0, 32.0))),
+                        &display_path(&self.path),
+                        winui::BG(),
+                        true,
+                        "complete-saved",
+                    );
+
+                    // Buttons row at y = 188.0 (36.0 px tall)
+                    let btn = |ui: &mut Ui, (x, w): (f32, f32), label: &str, kind| {
+                        winui::button(ui, winui::rect(Rect::from_min_size(pos2(o.x + x, o.y + 188.0), vec2(w, 36.0))), label, kind, false, None)
+                    };
+                    let [open_at, with_at, folder_at, close_at] = winui::button_row_from_left(
+                        &p,
+                        &[
+                            ("Open", 24.0, 100.0),
+                            ("Open with...", 136.0, 110.0),
+                            ("Open folder", 258.0, 110.0),
+                            ("Close", 426.0, 100.0),
+                        ],
+                        24.0,
+                        526.0,
+                        200.0,
+                    )[..] else {
+                        unreachable!("four buttons")
+                    };
+                    let open = btn(ui, open_at, "Open", ButtonKind::Default);
+                    let with = btn(ui, with_at, "Open with...", ButtonKind::Normal);
+                    let folder = btn(ui, folder_at, "Open folder", ButtonKind::Normal);
+                    let close = btn(ui, close_at, "Close", ButtonKind::Normal);
+
+                    // Footer at y = 252.0
+                    let room = if cfg!(windows) { 470.0 } else { 526.0 };
+                    if let Some(s) = complete_footer(ui, o, 252.0, &mut self.dont_show, room) {
+                        self.snooze = Some(s);
+                    }
+
+                    // Modern Drag handle chip at right
+                    #[cfg(windows)]
+                    {
+                        let handle = Rect::from_min_size(pos2(o.x + 482.0, o.y + 244.0), vec2(44.0, 32.0));
+                        let grip = ui
+                            .interact(
+                                winui::rect(handle),
+                                egui::Id::unique(("drag-out", self.id)),
+                                winui::pointer_drag(),
+                            )
+                            .on_hover_text(crate::i18n::t("Drag the file into a folder or an app"));
+                        if grip.hovered() {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+                        }
+                        if grip.drag_started() {
+                            let (id, from, wake) = (self.id, self.path.clone(), ui.ctx().clone());
+                            let followed = move |out| {
+                                DRAGGED_OUT
+                                    .lock()
+                                    .unwrap_or_else(|e| e.into_inner())
+                                    .push((id, from, out));
+                                wake.request_repaint();
+                            };
+                            if let Err(e) = crate::win32::drag_file_out(
+                                crate::i18n::t("Download complete"),
+                                &self.path,
+                                followed,
+                            ) {
+                                tracing::warn!("drag out: {e}");
+                            }
+                        }
+                        let handle_bg = if grip.hovered() {
+                            if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) }
+                        } else {
+                            if dark { Color32::from_rgb(30, 41, 59) } else { Color32::from_rgb(241, 245, 249) }
+                        };
+                        p.rect_filled(winui::rect(handle), 8.0, handle_bg);
+                        p.rect_stroke(winui::rect(handle), 8.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+                        crate::icons::Icon::DragOut.image(true).paint_at(
+                            ui,
+                            egui::Rect::from_center_size(winui::rect(handle).center(), vec2(18.0, 18.0)),
+                        );
+                    }
+
+                    #[cfg(windows)]
+                    let dragging = crate::win32::dragging_out();
+                    #[cfg(not(windows))]
+                    let dragging = false;
+                    let opened = self.opening.as_ref().and_then(|a| a.answer(&self.path));
+                    if opened.is_some() {
+                        self.opening = None;
+                    }
+                    if (open.clicked() || (!dragging && winui::enter_pressed(ui)))
+                        && self.opening.is_none()
+                    {
+                        let opening = crate::launch::Asked::default();
+                        let moved_away = self.moved_away;
+                        let _ = opening.get(
+                            &self.path,
+                            std::time::Duration::MAX,
+                            std::time::Duration::ZERO,
+                            Some(ui.ctx()),
+                            move |p| open_download_now(p, moved_away),
+                        );
+                        self.opening = Some(opening);
+                    }
+                    if opened == Some(true) || self.snooze.is_some() {
+                        Outcome::Done(())
+                    } else if with.clicked() {
+                        open_download_with(&self.path, self.moved_away);
+                        Outcome::Done(())
+                    } else if folder.clicked() {
+                        show_download_in_folder(&self.path, self.moved_away);
+                        Outcome::Done(())
+                    } else if close.clicked() || (!dragging && winui::escape_pressed(ui)) {
+                        Outcome::Done(())
+                    } else {
+                        Outcome::Open
+                    }
+                } else {
                 // The system's open folder (IDM shows one here): the shared file icons'.
                 crate::fileicons::paint_at(
                     ui,
@@ -2091,6 +2420,7 @@ impl Complete {
                     Outcome::Done(())
                 } else {
                     Outcome::Open
+                }
                 }
             },
         )
@@ -2422,16 +2752,28 @@ impl SpeedSettings {
 
     pub fn show(&mut self, ctx: &egui::Context) -> Outcome<SpeedChoice> {
         let extra = self.note_extra;
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [480.0, 230.0 + extra] } else { [453.0, 197.0 + extra] };
         window(
             ctx,
             "speed-settings",
             "Speed Limiter settings",
-            [453.0, 197.0 + extra],
+            dlg_size,
             false,
             winui::LIGHT_BG(),
             |ui, o| {
                 let p = ui.painter().clone();
-                let black = winui::LIGHT_TEXT();
+                let text_color = if is_modern { winui::TEXT() } else { winui::LIGHT_TEXT() };
+                if is_modern {
+                    let dark = crate::theme::dark();
+                    let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+                    let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+                    let card_rect = Rect::from_min_max(pos2(o.x + 8.0, o.y + 6.0), pos2(o.x + 472.0, o.y + 224.0 + extra));
+                    p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+                    p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+                }
+
+                let black = text_color;
                 // The label ends where `text_right(265)` ended it: at 266.
                 let kb_box = winui::sentence(
                     ui,
@@ -2468,23 +2810,44 @@ impl SpeedSettings {
                     winui::paragraph(&p, o.x + 11.0, o.y + 47.0, note, black, o.x + 449.0, 13.0);
                 self.note_extra = lines.saturating_sub(3) as f32 * 13.0;
                 let o = o + vec2(0.0, self.note_extra);
-                winui::checkbox_light(
-                    ui,
-                    o + vec2(11.0, 86.0),
-                    &mut self.on_startup,
-                    "Always turn on Speed Limiter on Mister Download Manager startup",
-                    true,
-                );
+                if is_modern {
+                    winui::checkbox(
+                        ui,
+                        o + vec2(11.0, 86.0),
+                        &mut self.on_startup,
+                        "Always turn on Speed Limiter on Luna Download Manager startup",
+                        true,
+                    );
+                } else {
+                    winui::checkbox_light(
+                        ui,
+                        o + vec2(11.0, 86.0),
+                        &mut self.on_startup,
+                        "Always turn on Speed Limiter on Luna Download Manager startup",
+                        true,
+                    );
+                }
                 // Beyond IDM: a limit for all downloads together.
                 winui::etched_h(&p, o.x + 11.0, o.y + 108.0, 431.0);
-                winui::checkbox_light_until(
-                    ui,
-                    o + vec2(11.0, 121.0),
-                    &mut self.global_on,
-                    "Limit all downloads together to",
-                    true,
-                    Some(o.x + 196.0),
-                );
+                if is_modern {
+                    winui::checkbox_until(
+                        ui,
+                        o + vec2(11.0, 121.0),
+                        &mut self.global_on,
+                        "Limit all downloads together to",
+                        true,
+                        Some(o.x + 196.0),
+                    );
+                } else {
+                    winui::checkbox_light_until(
+                        ui,
+                        o + vec2(11.0, 121.0),
+                        &mut self.global_on,
+                        "Limit all downloads together to",
+                        true,
+                        Some(o.x + 196.0),
+                    );
+                }
                 let on = self.global_on;
                 winui::number_field(
                     ui,
@@ -2495,7 +2858,7 @@ impl SpeedSettings {
                     on,
                     winui::LIGHT_BG(),
                 );
-                let c = if on { black } else { winui::LIGHT_DISABLED() };
+                let c = if on { text_color } else { winui::LIGHT_DISABLED() };
                 // i18n: unit after an input box: kilobytes per second
                 winui::text(
                     &p,
@@ -2504,29 +2867,62 @@ impl SpeedSettings {
                     crate::i18n::t("KBytes/sec"),
                     c,
                 );
-                winui::checkbox_light(
-                    ui,
-                    o + vec2(29.0, 143.0),
-                    &mut self.only_active,
-                    "Only while I'm using the computer",
-                    on,
-                );
-                let ok = winui::button_light(
-                    ui,
-                    r(o, 285.0, 164.0, 73.0, 21.0),
-                    "OK",
-                    ButtonKind::Default,
-                    true,
-                )
-                .clicked();
-                let cancel = winui::button_light(
-                    ui,
-                    r(o, 369.0, 164.0, 73.0, 21.0),
-                    "Cancel",
-                    ButtonKind::Normal,
-                    false,
-                )
-                .clicked();
+                if is_modern {
+                    winui::checkbox(
+                        ui,
+                        o + vec2(29.0, 143.0),
+                        &mut self.only_active,
+                        "Only while I'm using the computer",
+                        on,
+                    );
+                } else {
+                    winui::checkbox_light(
+                        ui,
+                        o + vec2(29.0, 143.0),
+                        &mut self.only_active,
+                        "Only while I'm using the computer",
+                        on,
+                    );
+                }
+                let (ok, cancel) = if is_modern {
+                    let ok = winui::button(
+                        ui,
+                        r(o, 276.0, 180.0, 88.0, 34.0),
+                        "OK",
+                        ButtonKind::Default,
+                        true,
+                        None,
+                    )
+                    .clicked();
+                    let cancel = winui::button(
+                        ui,
+                        r(o, 372.0, 180.0, 88.0, 34.0),
+                        "Cancel",
+                        ButtonKind::Normal,
+                        false,
+                        None,
+                    )
+                    .clicked();
+                    (ok, cancel)
+                } else {
+                    let ok = winui::button_light(
+                        ui,
+                        r(o, 285.0, 164.0, 73.0, 21.0),
+                        "OK",
+                        ButtonKind::Default,
+                        true,
+                    )
+                    .clicked();
+                    let cancel = winui::button_light(
+                        ui,
+                        r(o, 369.0, 164.0, 73.0, 21.0),
+                        "Cancel",
+                        ButtonKind::Normal,
+                        false,
+                    )
+                    .clicked();
+                    (ok, cancel)
+                };
                 if cancel || winui::escape_pressed(ui) {
                     Outcome::Closed
                 } else if ok || winui::enter_pressed(ui) {
@@ -2740,7 +3136,7 @@ impl TurnOffCountdown {
         question(
             ctx,
             "turn-off",
-            "Mister Download Manager",
+            "Luna Download Manager",
             [374.0, 100.0],
             false,
             winui::LIGHT_BG(),
@@ -2894,20 +3290,21 @@ impl ConfirmDelete {
     pub fn show(&mut self, ctx: &egui::Context) -> Outcome<(bool, bool)> {
         let n = self.ids.len() as u64;
         let extra = grow_extra(ctx, "confirm-delete");
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [420.0, 186.0 + extra] } else { [374.0, 146.0 + extra] };
         question(
             ctx,
             "confirm-delete",
             "Confirm deletion of downloads",
-            [374.0, 146.0 + extra],
+            dlg_size,
             false,
             winui::LIGHT_BG(),
             |ui, o| {
                 let p = ui.painter().clone();
-                let black = winui::LIGHT_TEXT();
                 let text = if n == 1 && self.unfinished {
                     crate::i18n::t(
                         "The selected download is not complete. Are you sure you want to delete
-it from Mister Download Manager list of downloads?",
+it from Luna Download Manager list of downloads?",
                     )
                     .to_owned()
                 } else if n == 1 {
@@ -2915,7 +3312,7 @@ it from Mister Download Manager list of downloads?",
                     let name = self.name.clone();
                     crate::i18n::fmt(
                         crate::i18n::t(
-                            "Are you sure you want to delete \"{name}\" from Mister Download Manager list of downloads?",
+                            "Are you sure you want to delete \"{name}\" from Luna Download Manager list of downloads?",
                         ),
                         // A file name keeps its own direction (an Arabic one reads right to left).
                         &[("name", &crate::i18n::isolate(&name))],
@@ -2927,59 +3324,93 @@ it from Mister Download Manager list of downloads?",
                         // i18n: never shown for a single download
                         &crate::i18n::tn(
                             n,
-                            "Are you sure you want to delete {n} download from Mister Download Manager list of downloads?",
-                            "Are you sure you want to delete these {n} downloads from Mister Download Manager list of downloads?",
+                            "Are you sure you want to delete {n} download from Luna Download Manager list of downloads?",
+                            "Are you sure you want to delete these {n} downloads from Luna Download Manager list of downloads?",
                         ),
                         &[("n", &crate::i18n::integer(n))],
                     )
                 };
-                let lines =
-                    winui::paragraph(&p, o.x + 11.0, o.y + 21.0, &text, black, o.x + 362.0, 13.0);
-                grow_to(ui.ctx(), "confirm-delete", lines, 3);
-                let o = o + vec2(0.0, extra);
-                let files = if n == 1 {
-                    crate::i18n::t("Also delete the file from disk").to_owned()
+
+                if is_modern {
+                    let dark = crate::theme::dark();
+                    let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+                    let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+                    let card_rect = Rect::from_min_max(pos2(o.x + 8.0, o.y + 6.0), pos2(o.x + 412.0, o.y + 180.0 + extra));
+                    p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+                    p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+
+                    let lines = winui::paragraph(&p, o.x + 20.0, o.y + 22.0, &text, winui::TEXT(), o.x + 400.0, 16.0);
+                    grow_to(ui.ctx(), "confirm-delete", lines, 3);
+                    let o = o + vec2(0.0, extra);
+                    let files = if n == 1 {
+                        crate::i18n::t("Also delete the file from disk").to_owned()
+                    } else {
+                        crate::i18n::fmt(
+                            &crate::i18n::tn(n, "Also delete the {n} file from disk", "Also delete the {n} files from disk"),
+                            &[("n", &crate::i18n::integer(n))],
+                        )
+                    };
+                    winui::checkbox(ui, o + vec2(20.0, 68.0), &mut self.files, &files, true);
+                    let yes = winui::button(ui, r(o, 100.0, 98.0, 96.0, 34.0), "Yes", ButtonKind::Default, false, None).clicked();
+                    let no = winui::button(ui, r(o, 220.0, 98.0, 96.0, 34.0), "No", ButtonKind::Normal, false, None).clicked();
+                    winui::checkbox(ui, o + vec2(20.0, 144.0), &mut self.dont_show, "Don't show this dialog again", true);
+                    if no || winui::escape_pressed(ui) {
+                        Outcome::Closed
+                    } else if yes || winui::enter_pressed(ui) {
+                        Outcome::Done((self.files, self.dont_show))
+                    } else {
+                        Outcome::Open
+                    }
                 } else {
-                    crate::i18n::fmt(
-                        // i18n: never shown for a single file
-                        &crate::i18n::tn(
-                            n,
-                            "Also delete the {n} file from disk",
-                            "Also delete the {n} files from disk",
-                        ),
-                        &[("n", &crate::i18n::integer(n))],
+                    let black = winui::LIGHT_TEXT();
+                    let lines =
+                        winui::paragraph(&p, o.x + 11.0, o.y + 21.0, &text, black, o.x + 362.0, 13.0);
+                    grow_to(ui.ctx(), "confirm-delete", lines, 3);
+                    let o = o + vec2(0.0, extra);
+                    let files = if n == 1 {
+                        crate::i18n::t("Also delete the file from disk").to_owned()
+                    } else {
+                        crate::i18n::fmt(
+                            // i18n: never shown for a single file
+                            &crate::i18n::tn(
+                                n,
+                                "Also delete the {n} file from disk",
+                                "Also delete the {n} files from disk",
+                            ),
+                            &[("n", &crate::i18n::integer(n))],
+                        )
+                    };
+                    winui::checkbox_light(ui, o + vec2(24.0, 60.0), &mut self.files, &files, true);
+                    let yes = winui::button_light(
+                        ui,
+                        r(o, 94.0, 86.0, 73.0, 21.0),
+                        "Yes",
+                        ButtonKind::Default,
+                        false,
                     )
-                };
-                winui::checkbox_light(ui, o + vec2(24.0, 60.0), &mut self.files, &files, true);
-                let yes = winui::button_light(
-                    ui,
-                    r(o, 94.0, 86.0, 73.0, 21.0),
-                    "Yes",
-                    ButtonKind::Default,
-                    false,
-                )
-                .clicked();
-                let no = winui::button_light(
-                    ui,
-                    r(o, 207.0, 86.0, 73.0, 21.0),
-                    "No",
-                    ButtonKind::Normal,
-                    false,
-                )
-                .clicked();
-                winui::checkbox_light(
-                    ui,
-                    o + vec2(24.0, 120.0),
-                    &mut self.dont_show,
-                    "Don't show this dialog again",
-                    true,
-                );
-                if no || winui::escape_pressed(ui) {
-                    Outcome::Closed
-                } else if yes || winui::enter_pressed(ui) {
-                    Outcome::Done((self.files, self.dont_show))
-                } else {
-                    Outcome::Open
+                    .clicked();
+                    let no = winui::button_light(
+                        ui,
+                        r(o, 207.0, 86.0, 73.0, 21.0),
+                        "No",
+                        ButtonKind::Normal,
+                        false,
+                    )
+                    .clicked();
+                    winui::checkbox_light(
+                        ui,
+                        o + vec2(24.0, 120.0),
+                        &mut self.dont_show,
+                        "Don't show this dialog again",
+                        true,
+                    );
+                    if no || winui::escape_pressed(ui) {
+                        Outcome::Closed
+                    } else if yes || winui::enter_pressed(ui) {
+                        Outcome::Done((self.files, self.dont_show))
+                    } else {
+                        Outcome::Open
+                    }
                 }
             },
         )
@@ -3259,64 +3690,145 @@ impl Duplicate {
     }
 
     pub fn show(&mut self, ctx: &egui::Context) -> Outcome<usize> {
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [520.0, 276.0] } else { [460.0, 156.0] };
         question(
             ctx,
             "duplicate",
             "Duplicate download link",
-            [460.0, 156.0],
+            dlg_size,
             false,
             winui::LIGHT_BG(),
             |ui, o| {
                 let p = ui.painter().clone();
-                let ink = winui::LIGHT_TEXT();
-                winui::text(
-                    &p,
-                    o.x + 11.0,
-                    o.y + 21.0,
-                    crate::i18n::t("This address is already in the list of downloads:"),
-                    ink,
-                );
-                let name = crate::i18n::isolate(&self.name);
-                let (rect, cut) =
-                    winui::text_fit(&p, o.x + 11.0, o.y + 39.0, &name, ink, o.x + 449.0);
-                if cut {
-                    winui::full_on_hover(ui, rect, "duplicate-name", &self.name);
-                }
-                let mut group = Vec::new();
-                for (k, label) in crate::options::DUPLICATE.iter().enumerate().skip(1) {
-                    let y = 52.0 + 20.0 * (k - 1) as f32;
-                    let resp =
-                        winui::radio_light(ui, o + vec2(14.0, y), self.choice == k, label, true);
-                    if resp.clicked() {
-                        self.choice = k;
+                if is_modern {
+                    let dark = crate::theme::dark();
+                    let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+                    let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+                    let card_rect = Rect::from_min_max(pos2(o.x + 10.0, o.y + 8.0), pos2(o.x + 510.0, o.y + 266.0));
+                    p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+                    p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+
+                    // Warning / Info Icon Badge
+                    let icon_rc = Rect::from_min_size(pos2(o.x + 24.0, o.y + 22.0), vec2(36.0, 36.0));
+                    let badge_bg = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(254, 243, 199) };
+                    p.rect_filled(winui::rect(icon_rc), 10.0, badge_bg);
+                    let ic = icon_rc.center();
+                    let icon_ink = if dark { Color32::from_rgb(251, 191, 36) } else { Color32::from_rgb(217, 119, 6) };
+                    let stroke = Stroke::new(2.0, icon_ink);
+                    p.circle_stroke(ic, 10.0, stroke);
+                    p.line_segment([pos2(ic.x, ic.y - 4.5), pos2(ic.x, ic.y + 1.0)], stroke);
+                    p.circle_filled(pos2(ic.x, ic.y + 4.5), 1.2, icon_ink);
+
+                    // Header Text
+                    let font_bold = winui::segoe();
+                    let title_c = if dark { Color32::from_rgb(241, 245, 249) } else { Color32::from_rgb(15, 23, 42) };
+                    let sub_c = if dark { Color32::from_rgb(148, 163, 184) } else { Color32::from_rgb(100, 116, 139) };
+                    winui::text_font(&p, font_bold, o.x + 70.0, o.y + 30.0, crate::i18n::t("Duplicate Download Link"), title_c);
+                    winui::text(&p, o.x + 70.0, o.y + 46.0, crate::i18n::t("This address is already in the list of downloads:"), sub_c);
+
+                    // File name chip
+                    let file_chip = Rect::from_min_size(pos2(o.x + 24.0, o.y + 68.0), vec2(472.0, 34.0));
+                    let chip_bg = if dark { Color32::from_rgb(15, 23, 42) } else { Color32::from_rgb(248, 250, 252) };
+                    p.rect_filled(winui::rect(file_chip), 8.0, chip_bg);
+                    p.rect_stroke(winui::rect(file_chip), 8.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+                    let name = crate::i18n::isolate(&self.name);
+                    let name_c = if dark { Color32::from_rgb(226, 232, 240) } else { Color32::from_rgb(30, 41, 59) };
+                    let (name_rc, cut) = winui::text_fit(&p, o.x + 36.0, o.y + 89.0, &name, name_c, o.x + 486.0);
+                    if cut {
+                        winui::full_on_hover(ui, name_rc, "duplicate-name", &self.name);
                     }
-                    group.push(resp);
-                }
-                if let Some(j) = winui::radio_keys(ui, &group) {
-                    self.choice = j + 1;
-                }
-                let ok = winui::button_light(
-                    ui,
-                    r(o, 295.0, 124.0, 73.0, 21.0),
-                    "OK",
-                    ButtonKind::Default,
-                    false,
-                )
-                .clicked();
-                let cancel = winui::button_light(
-                    ui,
-                    r(o, 376.0, 124.0, 73.0, 21.0),
-                    "Cancel",
-                    ButtonKind::Normal,
-                    false,
-                )
-                .clicked();
-                if cancel || winui::escape_pressed(ui) {
-                    Outcome::Closed
-                } else if ok || winui::enter_pressed(ui) {
-                    Outcome::Done(self.choice)
+
+                    // Radio group with modern spacing
+                    let mut group = Vec::new();
+                    for (k, label) in crate::options::DUPLICATE.iter().enumerate().skip(1) {
+                        let y = 114.0 + 28.0 * (k - 1) as f32;
+                        let resp = winui::radio_light(ui, o + vec2(28.0, y), self.choice == k, label, true);
+                        if resp.clicked() {
+                            self.choice = k;
+                        }
+                        group.push(resp);
+                    }
+                    if let Some(j) = winui::radio_keys(ui, &group) {
+                        self.choice = j + 1;
+                    }
+
+                    // Bottom Buttons: Cancel (Normal) and OK (Default)
+                    let cancel = winui::button(
+                        ui,
+                        winui::rect(Rect::from_min_size(pos2(o.x + 292.0, o.y + 214.0), vec2(96.0, 36.0))),
+                        "Cancel",
+                        ButtonKind::Normal,
+                        false,
+                        None,
+                    ).clicked();
+                    let ok = winui::button(
+                        ui,
+                        winui::rect(Rect::from_min_size(pos2(o.x + 400.0, o.y + 214.0), vec2(96.0, 36.0))),
+                        "OK",
+                        ButtonKind::Default,
+                        false,
+                        None,
+                    ).clicked();
+
+                    if cancel || winui::escape_pressed(ui) {
+                        Outcome::Closed
+                    } else if ok || winui::enter_pressed(ui) {
+                        Outcome::Done(self.choice)
+                    } else {
+                        Outcome::Open
+                    }
                 } else {
-                    Outcome::Open
+                    let ink = winui::LIGHT_TEXT();
+                    winui::text(
+                        &p,
+                        o.x + 11.0,
+                        o.y + 21.0,
+                        crate::i18n::t("This address is already in the list of downloads:"),
+                        ink,
+                    );
+                    let name = crate::i18n::isolate(&self.name);
+                    let (rect, cut) =
+                        winui::text_fit(&p, o.x + 11.0, o.y + 39.0, &name, ink, o.x + 449.0);
+                    if cut {
+                        winui::full_on_hover(ui, rect, "duplicate-name", &self.name);
+                    }
+                    let mut group = Vec::new();
+                    for (k, label) in crate::options::DUPLICATE.iter().enumerate().skip(1) {
+                        let y = 52.0 + 20.0 * (k - 1) as f32;
+                        let resp =
+                            winui::radio_light(ui, o + vec2(14.0, y), self.choice == k, label, true);
+                        if resp.clicked() {
+                            self.choice = k;
+                        }
+                        group.push(resp);
+                    }
+                    if let Some(j) = winui::radio_keys(ui, &group) {
+                        self.choice = j + 1;
+                    }
+                    let ok = winui::button_light(
+                        ui,
+                        r(o, 295.0, 124.0, 73.0, 21.0),
+                        "OK",
+                        ButtonKind::Default,
+                        false,
+                    )
+                    .clicked();
+                    let cancel = winui::button_light(
+                        ui,
+                        r(o, 376.0, 124.0, 73.0, 21.0),
+                        "Cancel",
+                        ButtonKind::Normal,
+                        false,
+                    )
+                    .clicked();
+                    if cancel || winui::escape_pressed(ui) {
+                        Outcome::Closed
+                    } else if ok || winui::enter_pressed(ui) {
+                        Outcome::Done(self.choice)
+                    } else {
+                        Outcome::Open
+                    }
                 }
             },
         )
@@ -3419,50 +3931,74 @@ impl Confirm {
         let text = self.text.clone();
         let key = format!("confirm-{}", self.title);
         let extra = grow_extra(ctx, &key);
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [440.0, 130.0 + extra] } else { [400.0, 96.0 + extra] };
         question(
             ctx,
             &key,
             self.title,
-            [400.0, 96.0 + extra],
+            dlg_size,
             false,
             winui::BG(),
             |ui, o| {
                 let p = ui.painter().clone();
-                let lines = winui::paragraph(
-                    &p,
-                    o.x + 11.0,
-                    o.y + 22.0,
-                    &text,
-                    winui::TEXT(),
-                    o.x + 389.0,
-                    13.0,
-                );
-                grow_to(ui.ctx(), &key, lines, 3);
-                let o = o + vec2(0.0, extra);
-                let yes = winui::button(
-                    ui,
-                    r(o, 234.0, 64.0, 73.0, 21.0),
-                    "Yes",
-                    ButtonKind::Default,
-                    false,
-                    None,
-                )
-                .clicked();
-                let no = winui::button(
-                    ui,
-                    r(o, 316.0, 64.0, 73.0, 21.0),
-                    "No",
-                    ButtonKind::Normal,
-                    false,
-                    None,
-                )
-                .clicked();
-                if no || winui::escape_pressed(ui) {
-                    Outcome::Closed
-                } else if yes || winui::enter_pressed(ui) {
-                    Outcome::Done(())
+                if is_modern {
+                    let dark = crate::theme::dark();
+                    let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+                    let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+                    let card_rect = Rect::from_min_max(pos2(o.x + 8.0, o.y + 6.0), pos2(o.x + 432.0, o.y + 124.0 + extra));
+                    p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+                    p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+
+                    let lines = winui::paragraph(&p, o.x + 20.0, o.y + 24.0, &text, winui::TEXT(), o.x + 420.0, 16.0);
+                    grow_to(ui.ctx(), &key, lines, 3);
+                    let o = o + vec2(0.0, extra);
+                    let yes = winui::button(ui, r(o, 230.0, 78.0, 90.0, 34.0), "Yes", ButtonKind::Default, false, None).clicked();
+                    let no = winui::button(ui, r(o, 328.0, 78.0, 90.0, 34.0), "No", ButtonKind::Normal, false, None).clicked();
+                    if no || winui::escape_pressed(ui) {
+                        Outcome::Closed
+                    } else if yes || winui::enter_pressed(ui) {
+                        Outcome::Done(())
+                    } else {
+                        Outcome::Open
+                    }
                 } else {
-                    Outcome::Open
+                    let lines = winui::paragraph(
+                        &p,
+                        o.x + 11.0,
+                        o.y + 22.0,
+                        &text,
+                        winui::TEXT(),
+                        o.x + 389.0,
+                        13.0,
+                    );
+                    grow_to(ui.ctx(), &key, lines, 3);
+                    let o = o + vec2(0.0, extra);
+                    let yes = winui::button(
+                        ui,
+                        r(o, 234.0, 64.0, 73.0, 21.0),
+                        "Yes",
+                        ButtonKind::Default,
+                        false,
+                        None,
+                    )
+                    .clicked();
+                    let no = winui::button(
+                        ui,
+                        r(o, 316.0, 64.0, 73.0, 21.0),
+                        "No",
+                        ButtonKind::Normal,
+                        false,
+                        None,
+                    )
+                    .clicked();
+                    if no || winui::escape_pressed(ui) {
+                        Outcome::Closed
+                    } else if yes || winui::enter_pressed(ui) {
+                        Outcome::Done(())
+                    } else {
+                        Outcome::Open
+                    }
                 }
             },
         )
@@ -3596,88 +4132,142 @@ impl CreateFolder {
     /// `Done` once the folder exists (created on Yes); `Closed` on No, Escape or the close box.
     pub fn show(&mut self, ctx: &egui::Context) -> Outcome<()> {
         let folder = self.folder.display().to_string();
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [460.0, 160.0] } else { [420.0, 128.0] };
         question(
             ctx,
             "create-folder",
             "Create folder",
-            [420.0, 128.0],
+            dlg_size,
             false,
             winui::BG(),
             |ui, o| {
                 let p = ui.painter().clone();
                 let ink = winui::TEXT();
-                winui::text(
-                    &p,
-                    o.x + 11.0,
-                    o.y + 21.0,
-                    crate::i18n::t("This folder does not exist:"),
-                    ink,
-                );
-                let (rect, cut) =
-                    winui::text_fit(&p, o.x + 11.0, o.y + 39.0, &folder, ink, o.x + 409.0);
-                if cut {
-                    winui::full_on_hover(ui, rect, "create-folder-path", &folder);
-                }
-                winui::text(
-                    &p,
-                    o.x + 11.0,
-                    o.y + 57.0,
-                    crate::i18n::t("Do you want to create it?"),
-                    ink,
-                );
-                if let Some(e) = &self.error {
-                    let (rect, cut) =
-                        winui::text_fit(&p, o.x + 11.0, o.y + 75.0, e, winui::ERROR(), o.x + 409.0);
+                if is_modern {
+                    let dark = crate::theme::dark();
+                    let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+                    let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+                    let card_rect = Rect::from_min_max(pos2(o.x + 8.0, o.y + 6.0), pos2(o.x + 452.0, o.y + 154.0));
+                    p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+                    p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+
+                    winui::text(&p, o.x + 20.0, o.y + 26.0, crate::i18n::t("This folder does not exist:"), ink);
+                    let (rect, cut) = winui::text_fit(&p, o.x + 20.0, o.y + 46.0, &folder, ink, o.x + 440.0);
                     if cut {
-                        winui::full_on_hover(ui, rect, "create-folder-error", e);
+                        winui::full_on_hover(ui, rect, "create-folder-path", &folder);
                     }
-                }
-                let yes = winui::button(
-                    ui,
-                    r(o, 254.0, 94.0, 73.0, 21.0),
-                    "Yes",
-                    ButtonKind::Default,
-                    false,
-                    None,
-                )
-                .clicked();
-                let no = winui::button(
-                    ui,
-                    r(o, 336.0, 94.0, 73.0, 21.0),
-                    "No",
-                    ButtonKind::Normal,
-                    false,
-                    None,
-                )
-                .clicked();
-                // Made beside the window (#743): a drive slow to answer doesn't hold it.
-                let made = self.making.as_ref().and_then(|m| m.answer(&self.folder));
-                if made.is_some() {
-                    self.making = None;
-                }
-                if let Some(Err(e)) = &made {
-                    self.error = Some(crate::i18n::fmt(
-                        crate::i18n::t("The folder could not be created: {error}"),
-                        &[("error", e)],
-                    ));
-                }
-                if no || winui::escape_pressed(ui) {
-                    Outcome::Closed
-                } else if made == Some(Ok(())) {
-                    Outcome::Done(())
+                    winui::text(&p, o.x + 20.0, o.y + 68.0, crate::i18n::t("Do you want to create it?"), ink);
+                    if let Some(e) = &self.error {
+                        let (rect, cut) = winui::text_fit(&p, o.x + 20.0, o.y + 88.0, e, winui::ERROR(), o.x + 440.0);
+                        if cut {
+                            winui::full_on_hover(ui, rect, "create-folder-error", e);
+                        }
+                    }
+                    let yes = winui::button(ui, r(o, 250.0, 106.0, 90.0, 34.0), "Yes", ButtonKind::Default, false, None).clicked();
+                    let no = winui::button(ui, r(o, 348.0, 106.0, 90.0, 34.0), "No", ButtonKind::Normal, false, None).clicked();
+                    let made = self.making.as_ref().and_then(|m| m.answer(&self.folder));
+                    if made.is_some() {
+                        self.making = None;
+                    }
+                    if let Some(Err(e)) = &made {
+                        self.error = Some(crate::i18n::fmt(
+                            crate::i18n::t("The folder could not be created: {error}"),
+                            &[("error", e)],
+                        ));
+                    }
+                    if no || winui::escape_pressed(ui) {
+                        Outcome::Closed
+                    } else if made == Some(Ok(())) {
+                        Outcome::Done(())
+                    } else {
+                        if (yes || winui::enter_pressed(ui)) && self.making.is_none() {
+                            let making = crate::launch::Asked::default();
+                            let _ = making.get(
+                                &self.folder,
+                                std::time::Duration::MAX,
+                                std::time::Duration::ZERO,
+                                Some(ui.ctx()),
+                                |f| std::fs::create_dir_all(f).map_err(|e| e.to_string()),
+                            );
+                            self.making = Some(making);
+                        }
+                        Outcome::Open
+                    }
                 } else {
-                    if (yes || winui::enter_pressed(ui)) && self.making.is_none() {
-                        let making = crate::launch::Asked::default();
-                        let _ = making.get(
-                            &self.folder,
-                            std::time::Duration::MAX,
-                            std::time::Duration::ZERO,
-                            Some(ui.ctx()),
-                            |f| std::fs::create_dir_all(f).map_err(|e| e.to_string()),
-                        );
-                        self.making = Some(making);
+                    winui::text(
+                        &p,
+                        o.x + 11.0,
+                        o.y + 21.0,
+                        crate::i18n::t("This folder does not exist:"),
+                        ink,
+                    );
+                    let (rect, cut) =
+                        winui::text_fit(&p, o.x + 11.0, o.y + 39.0, &folder, ink, o.x + 409.0);
+                    if cut {
+                        winui::full_on_hover(ui, rect, "create-folder-path", &folder);
                     }
-                    Outcome::Open
+                    winui::text(
+                        &p,
+                        o.x + 11.0,
+                        o.y + 57.0,
+                        crate::i18n::t("Do you want to create it?"),
+                        ink,
+                    );
+                    if let Some(e) = &self.error {
+                        let (rect, cut) =
+                            winui::text_fit(&p, o.x + 11.0, o.y + 75.0, e, winui::ERROR(), o.x + 409.0);
+                        if cut {
+                            winui::full_on_hover(ui, rect, "create-folder-error", e);
+                        }
+                    }
+                    let yes = winui::button(
+                        ui,
+                        r(o, 254.0, 94.0, 73.0, 21.0),
+                        "Yes",
+                        ButtonKind::Default,
+                        false,
+                        None,
+                    )
+                    .clicked();
+                    let no = winui::button(
+                        ui,
+                        r(o, 336.0, 94.0, 73.0, 21.0),
+                        "No",
+                        ButtonKind::Normal,
+                        false,
+                        None,
+                    )
+                    .clicked();
+                    // Made beside the window (#743): a drive slow to answer doesn't hold it.
+                    let made = self.making.as_ref().and_then(|m| m.answer(&self.folder));
+                    if made.is_some() {
+                        self.making = None;
+                    }
+                    if let Some(Err(e)) = &made {
+                        self.error = Some(crate::i18n::fmt(
+                            crate::i18n::t("The folder could not be created: {error}"),
+                            &[("error", e)],
+                        ));
+                    }
+                    if no || winui::escape_pressed(ui) {
+                        Outcome::Closed
+                    } else if made == Some(Ok(())) {
+                        Outcome::Done(())
+                    } else {
+                        if (yes || winui::enter_pressed(ui)) && self.making.is_none() {
+                            let making = crate::launch::Asked::default();
+                            let _ = making.get(
+                                &self.folder,
+                                std::time::Duration::MAX,
+                                std::time::Duration::ZERO,
+                                Some(ui.ctx()),
+                                |f| std::fs::create_dir_all(f).map_err(|e| e.to_string()),
+                            );
+                            self.making = Some(making);
+                        }
+                        Outcome::Open
+                    }
                 }
             },
         )
@@ -4305,7 +4895,7 @@ mod tests {
                         ui.painter().text(
                             origin + vec2(10.0, 10.0),
                             egui::Align2::LEFT_TOP,
-                            "Mister Download Manager",
+                            "Luna Download Manager",
                             egui::FontId::proportional(12.0),
                             egui::Color32::BLACK,
                         );

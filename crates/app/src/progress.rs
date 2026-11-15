@@ -1,7 +1,7 @@
 //! The per-download progress dialog, painted to IDM 6.42's pixels
 //! (notes/ui-spec/progress-dialog.md). Coordinates are client pixels from the spec.
 
-use egui::{Color32, Pos2, Ui, ViewportBuilder, ViewportId, vec2};
+use egui::{Color32, Pos2, Rect, Stroke, Ui, ViewportBuilder, ViewportId, pos2, vec2};
 use mdm_engine::Snapshot;
 use mdm_engine::download::ConnStatus;
 
@@ -16,11 +16,14 @@ use crate::winui::caption::CaptionButton;
 /// The drawn title bar's height (#63): Windows only, where the frame is ours
 /// (win32::progress_frame); Linux and macOS keep the system's decorations, which take no buttons
 /// of ours (Wayland even places them itself), so the hide button sits in the tab row there.
-const TITLE_H: f32 = if cfg!(windows) {
-    crate::winui::caption::CAPTION_H
-} else {
-    0.0
-};
+#[inline]
+fn title_h() -> f32 {
+    if cfg!(windows) {
+        crate::winui::caption::caption_h()
+    } else {
+        0.0
+    }
+}
 
 /// Extra height added to the top tab pane for the deferred Rename row on Download status.
 const RENAME_DROP: f32 = 28.0;
@@ -507,14 +510,21 @@ impl Progress {
             _ => 0.0,
         };
         let drop = self.status_drop();
-        let body = if self.details {
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let body = if is_modern {
+            if self.details {
+                [576.0, 436.0 + drop + torrent_drop(item)]
+            } else {
+                [576.0, 272.0 + drop]
+            }
+        } else if self.details {
             [548.0, 412.0 + drop + torrent_drop(item)]
         } else {
             [548.0, 241.0 + drop]
         };
         // Windows: the title bar is ours (#63), drawn in the client above IDM's layout, so the
         // hide button sits in it, left of Minimize, as in IDM. Elsewhere the system draws it.
-        let client = [body[0], body[1] + TITLE_H];
+        let client = [body[0], body[1] + title_h()];
         // As large as the screen allows at the interface size (#262): the rest scrolls.
         let shown = crate::dialogs::shown_size(ctx, client);
         let vid = ViewportId::from_hash_of(("progress", self.id));
@@ -558,7 +568,7 @@ impl Progress {
                     let _surface = winui::Surface::enter(o.x, o.x + shown[0]);
                     let caption = draw_caption(ui, o, shown[0], &title_now, &buttons, hwnd);
                     // The layout under the title bar, scrolled when the window is smaller.
-                    let below = egui::Rect::from_min_max(o + vec2(0.0, TITLE_H), ui.max_rect().max);
+                    let below = egui::Rect::from_min_max(o + vec2(0.0, title_h()), ui.max_rect().max);
                     let mut rest = ui.new_child(egui::UiBuilder::new().max_rect(below));
                     let action = crate::dialogs::scroll(&mut rest, key, body, |ui, o| {
                         let _surface = winui::Surface::enter(o.x, o.x + body[0]);
@@ -714,12 +724,17 @@ impl Progress {
             ui.ctx().request_repaint();
         }
 
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
         let lower = o + vec2(0.0, self.status_drop());
 
         // The progress bar: IDM's green on the shared, themed track. After the last byte, while
         // the file is checked or a video joined (#736), it starts again in the accent colour and
         // shows how far that is.
-        let bar = r(lower, 17.0, 180.0, 513.0, 16.0);
+        let bar = if is_modern {
+            Rect::from_min_size(pos2(lower.x + 18.0, lower.y + 196.0), vec2(540.0, 16.0))
+        } else {
+            r(lower, 17.0, 180.0, 513.0, 16.0)
+        };
         match finishing_fraction(snap) {
             Some(f) => winui::meter_in(&p, bar, f as f32, crate::theme::colors().accent),
             None => winui::meter(&p, bar, drawn.0 as f32),
@@ -757,16 +772,22 @@ impl Progress {
         if web_page {
             row.insert(1, (open_label, 176.0, 127.0));
         }
-        let placed = winui::button_row(&p, &row, 8.0, 30.0, 200.0);
+        let placed = if is_modern {
+            winui::button_row(&p, &row, 12.0, 18.0, 558.0)
+        } else {
+            winui::button_row(&p, &row, 8.0, 30.0, 200.0)
+        };
         let (details_at, open_at, pause_at, cancel_at) = match placed[..] {
             [details, open, pause, cancel] => (details, Some(open), pause, cancel),
             [details, pause, cancel] => (details, None, pause, cancel),
             _ => unreachable!("three or four buttons"),
         };
+        let btn_y = if is_modern { 224.0 } else { 206.0 };
+        let btn_h = if is_modern { 34.0 } else { 22.0 };
         if let Some(open_at) = open_at
             && winui::button(
                 ui,
-                r(lower, open_at.0, 206.0, open_at.1, 22.0),
+                r(lower, open_at.0, btn_y, open_at.1, btn_h),
                 open_label,
                 // The way on: the default, unless another tab's Show details is.
                 if other_tab {
@@ -783,7 +804,7 @@ impl Progress {
         }
         if winui::button(
             ui,
-            r(lower, details_at.0, 206.0, details_at.1, 22.0),
+            r(lower, details_at.0, btn_y, details_at.1, btn_h),
             details_label,
             kind,
             false,
@@ -797,16 +818,16 @@ impl Progress {
         let can_resume = matches!(item.status, Status::Stopped | Status::Error);
         let (label, pkind) = if running {
             // i18n: verb: pause the download
-            (crate::i18n::mark("Pause"), ButtonKind::Normal)
+            (crate::i18n::mark("Pause"), if is_modern { ButtonKind::Default } else { ButtonKind::Normal })
         } else if can_resume {
             // i18n: verb: continue the download
-            (crate::i18n::mark("Resume"), ButtonKind::Normal)
+            (crate::i18n::mark("Resume"), if is_modern { ButtonKind::Default } else { ButtonKind::Normal })
         } else {
             (crate::i18n::mark("Pause"), ButtonKind::Disabled)
         };
         if winui::button(
             ui,
-            r(lower, pause_at.0, 206.0, pause_at.1, 22.0),
+            r(lower, pause_at.0, btn_y, pause_at.1, btn_h),
             label,
             pkind,
             false,
@@ -822,7 +843,7 @@ impl Progress {
         }
         if winui::button(
             ui,
-            r(lower, cancel_at.0, 206.0, cancel_at.1, 22.0),
+            r(lower, cancel_at.0, btn_y, cancel_at.1, btn_h),
             "Cancel",
             ButtonKind::Normal,
             false,
@@ -1246,7 +1267,7 @@ impl Progress {
             ui,
             o + vec2(33.0, 114.0),
             &mut self.exit,
-            "Exit Mister Download Manager when done",
+            "Exit Luna Download Manager when done",
             on,
         );
         winui::checkbox_until(
@@ -1374,72 +1395,132 @@ impl Progress {
                 )],
             ),
         };
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        if is_modern {
+            let dark = crate::theme::dark();
+            let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+            let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+            let card_rc = Rect::from_min_max(pos2(o.x + 18.0, o.y + 26.0), pos2(o.x + 558.0, o.y + 186.0));
+            p.rect_filled(winui::rect(card_rc), 12.0, card_bg);
+            p.rect_stroke(winui::rect(card_rc), 12.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+        }
+        let url_y = if is_modern { 40.0 } else { 44.0 };
         fit(
             ui,
             "url",
             33.0,
-            44.0,
+            url_y,
             // A video's stream, not its page (#795).
             &crate::i18n::ltr(item.file_address().as_str()),
             winui::TEXT(),
         );
-        let rows: [(&str, f32, f32, String); 6] = [
-            // i18n: noun: label before the download's state
-            (crate::i18n::mark("Status"), 61.0, 102.0, status),
-            (
-                crate::i18n::mark("File size"),
-                80.0,
-                135.0,
-                item.size.map_or(String::new(), size3),
-            ),
-            (
-                // i18n: label before the amount received so far
-                crate::i18n::mark("Downloaded"),
-                96.0,
-                135.0,
-                match frac {
-                    // No size: only how much has come, no 0 % that never moves.
-                    None => size3(item.downloaded),
-                    Some(frac) if crate::i18n::code() == "en" => {
-                        format!("{} ( {:.2} % )", size3(item.downloaded), frac * 100.0) // not translated: English path (IDM's spacing)
+        let rows: [(&str, f32, f32, String); 6] = if is_modern {
+            [
+                (crate::i18n::mark("Status"), 60.0, 106.0, status),
+                (
+                    crate::i18n::mark("File size"),
+                    80.0,
+                    140.0,
+                    item.size.map_or(String::new(), size3),
+                ),
+                (
+                    crate::i18n::mark("Downloaded"),
+                    100.0,
+                    140.0,
+                    match frac {
+                        None => size3(item.downloaded),
+                        Some(frac) if crate::i18n::code() == "en" => {
+                            format!("{} ( {:.2} % )", size3(item.downloaded), frac * 100.0)
+                        }
+                        Some(frac) => format!(
+                            "{} ( {} )",
+                            size3(item.downloaded),
+                            crate::i18n::percent(frac, 2)
+                        ),
+                    },
+                ),
+                (
+                    crate::i18n::mark("Transfer rate"),
+                    120.0,
+                    140.0,
+                    if item.status == Status::Downloading && !item.past_last_byte() {
+                        model::rate(item.rate())
+                    } else {
+                        String::new()
+                    },
+                ),
+                (
+                    crate::i18n::mark("Time left"),
+                    140.0,
+                    140.0,
+                    item.time_left(),
+                ),
+                (
+                    crate::i18n::mark("Resume capability"),
+                    160.0,
+                    140.0,
+                    match item.resumable {
+                        Some(true) => crate::i18n::t("Yes"),
+                        Some(false) => crate::i18n::t("No"),
+                        None => "",
                     }
-                    Some(frac) => format!(
-                        "{} ( {} )",
-                        size3(item.downloaded),
-                        crate::i18n::percent(frac, 2)
-                    ),
-                },
-            ),
-            (
-                crate::i18n::mark("Transfer rate"),
-                112.0,
-                135.0,
-                // Every byte in (#736): nothing comes in while the file is checked or joined.
-                if item.status == Status::Downloading && !item.past_last_byte() {
-                    model::rate(item.rate())
-                } else {
-                    String::new()
-                },
-            ),
-            (
-                crate::i18n::mark("Time left"),
-                128.0,
-                135.0,
-                item.time_left(),
-            ),
-            (
-                // i18n: label: whether the server lets a stopped download continue (Yes / No)
-                crate::i18n::mark("Resume capability"),
-                145.0,
-                135.0,
-                match item.resumable {
-                    Some(true) => crate::i18n::t("Yes"),
-                    Some(false) => crate::i18n::t("No"),
-                    None => "",
-                }
-                .to_owned(),
-            ),
-        ];
+                    .to_owned(),
+                ),
+            ]
+        } else {
+            [
+                (crate::i18n::mark("Status"), 61.0, 102.0, status),
+                (
+                    crate::i18n::mark("File size"),
+                    80.0,
+                    135.0,
+                    item.size.map_or(String::new(), size3),
+                ),
+                (
+                    crate::i18n::mark("Downloaded"),
+                    96.0,
+                    135.0,
+                    match frac {
+                        None => size3(item.downloaded),
+                        Some(frac) if crate::i18n::code() == "en" => {
+                            format!("{} ( {:.2} % )", size3(item.downloaded), frac * 100.0)
+                        }
+                        Some(frac) => format!(
+                            "{} ( {} )",
+                            size3(item.downloaded),
+                            crate::i18n::percent(frac, 2)
+                        ),
+                    },
+                ),
+                (
+                    crate::i18n::mark("Transfer rate"),
+                    112.0,
+                    135.0,
+                    if item.status == Status::Downloading && !item.past_last_byte() {
+                        model::rate(item.rate())
+                    } else {
+                        String::new()
+                    },
+                ),
+                (
+                    crate::i18n::mark("Time left"),
+                    128.0,
+                    135.0,
+                    item.time_left(),
+                ),
+                (
+                    crate::i18n::mark("Resume capability"),
+                    145.0,
+                    135.0,
+                    match item.resumable {
+                        Some(true) => crate::i18n::t("Yes"),
+                        Some(false) => crate::i18n::t("No"),
+                        None => "",
+                    }
+                    .to_owned(),
+                ),
+            ]
+        };
         // A value starts 6 px after its label at the least (a long translation); the rows that share
         // the column at 135 (all but Status) keep sharing one.
         let after = |label: &str| 33.0 + winui::text_width(p, crate::i18n::t(label)).ceil() + 6.0;

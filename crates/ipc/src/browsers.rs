@@ -415,7 +415,7 @@ pub fn windows_can_run_extension(program: &str) -> bool {
 }
 
 /// The host manifest's file name, in every folder.
-pub const HOST_MANIFEST: &str = "com.misterdownloadmanager.host.json";
+pub const HOST_MANIFEST: &str = "com.lunadownloadmanager.host.json";
 
 /// Linux and macOS (`mac`): the folders to write the host manifest into, each with the family
 /// whose manifest goes there, for this user (`home`, `config` = $XDG_CONFIG_HOME) or for

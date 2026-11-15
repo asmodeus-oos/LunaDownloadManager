@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use egui::{Pos2, Ui, pos2};
+use egui::{Color32, Pos2, Rect, Stroke, Ui, pos2};
 use mdm_tools::resolve::{Choice, Looked, SubChoice, Video};
 use mdm_tools::video::{ALL_UPLOADERS, Subs};
 
@@ -426,11 +426,13 @@ impl VideoDialog {
             self.confirmed = Some(now);
             ctx.request_repaint();
         }
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [560.0, 500.0] } else { [500.0, 422.0] };
         let out = window(
             ctx,
             "video-page",
             "Download video from a page",
-            [500.0, 422.0],
+            dlg_size,
             false,
             winui::BG(),
             |ui, o| self.body(ui, o, rt),
@@ -579,6 +581,15 @@ impl VideoDialog {
 
     fn body(&mut self, ui: &mut Ui, o: Pos2, rt: &tokio::runtime::Handle) -> Outcome<()> {
         let p = ui.painter().clone();
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        if is_modern {
+            let dark = crate::theme::dark();
+            let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+            let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+            let card_rect = Rect::from_min_max(pos2(o.x + 8.0, o.y + 6.0), pos2(o.x + 552.0, o.y + 494.0));
+            p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+            p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+        }
         let (dir, ytdlp, ffmpeg) = self.tools.get_or_insert_with(tools).clone();
         text(
             &p,
@@ -1013,10 +1024,12 @@ impl VideoDialog {
             &[("Helpers...", 90.0)],
             now_at.0 - 8.0 - 11.0,
         )[0];
+        let btn_y = if is_modern { 448.0 } else { BUTTONS_Y };
+        let btn_h = if is_modern { 36.0 } else { 21.0 };
         // Where yt-dlp and ffmpeg come from: MDM's own copies or the person's (#51).
         if winui::button(
             ui,
-            r(o, helpers_at.0, BUTTONS_Y, helpers_at.1, 21.0),
+            r(o, helpers_at.0, btn_y, helpers_at.1, btn_h),
             // i18n: button in Download video: where MDM takes yt-dlp and ffmpeg from
             "Helpers...",
             ButtonKind::Normal,
@@ -1029,7 +1042,7 @@ impl VideoDialog {
         }
         let now = winui::button(
             ui,
-            r(o, now_at.0, BUTTONS_Y, now_at.1, 21.0),
+            r(o, now_at.0, btn_y, now_at.1, btn_h),
             "Download Now",
             kind(true),
             false,
@@ -1042,7 +1055,7 @@ impl VideoDialog {
             || (ready && winui::enter_pressed(ui));
         let later = winui::button(
             ui,
-            r(o, later_at.0, BUTTONS_Y, later_at.1, 21.0),
+            r(o, later_at.0, btn_y, later_at.1, btn_h),
             // i18n: button: add it now, start downloading later
             "Later",
             kind(false),
@@ -1052,7 +1065,7 @@ impl VideoDialog {
         .clicked();
         let cancel = winui::button(
             ui,
-            r(o, cancel_at.0, BUTTONS_Y, cancel_at.1, 21.0),
+            r(o, cancel_at.0, btn_y, cancel_at.1, btn_h),
             "Cancel",
             ButtonKind::Normal,
             false,

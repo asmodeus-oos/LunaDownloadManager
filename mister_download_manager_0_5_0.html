@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mister Download Manager 0.5.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      box-sizing: border-box;
+      user-select: none;
+    }
+    body {
+      background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    /* Custom subtle scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    /* Popover smooth entrance */
+    @keyframes popIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    .menu-popover {
+      animation: popIn 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center p-2 sm:p-4">
+
+  <!-- Main Application Window Container -->
+  <div id="app-window" class="w-full h-full max-w-[1440px] bg-slate-50/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/80 flex flex-col overflow-hidden transition-all duration-200">
+
+    <!-- 1. Window Title Bar -->
+    <header class="h-10 px-4 bg-white border-b border-slate-200/80 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2.5">
+        <!-- Modern App Glyph Icon -->
+        <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-sm">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </div>
+        <span class="text-xs font-semibold text-slate-700 tracking-tight">Mister Download Manager 0.5.0</span>
+        <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+          Modern UI
+        </span>
+      </div>
+
+      <!-- Window Controls -->
+      <div class="flex items-center gap-1.5">
+        <button onclick="showToast('Window minimized to taskbar')" title="Minimize" class="w-8 h-7 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-colors">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <button onclick="toggleMaximize()" title="Maximize" class="w-8 h-7 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-colors">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+          </svg>
+        </button>
+        <button onclick="showToast('Exit requested (use Tasks > Exit)')" title="Close" class="w-8 h-7 rounded-lg hover:bg-rose-500 text-slate-500 hover:text-white flex items-center justify-center transition-colors">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. Top Menu Bar (Tasks, File, Downloads, View, Help) -->
+    <nav id="top-menubar" class="px-3 py-1.5 bg-white border-b border-slate-200/80 flex items-center gap-1 shrink-0 relative z-40">
+      <!-- Menus are rendered dynamically by JS for clean state & hover switching -->
+    </nav>
+
+    <!-- 3. Modern Glyph Toolbar -->
+    <section class="px-3 py-2.5 bg-slate-50/90 border-b border-slate-200/80 flex items-center gap-1.5 overflow-x-auto shrink-0 relative z-30">
+      <!-- Add URL (Clean modern rounded glyph button - NO green square border) -->
+      <button onclick="openAddUrlModal()" class="group flex flex-col items-center justify-center min-w-[72px] px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm active:scale-[0.98] transition-all text-slate-700">
+        <div class="w-8 h-8 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/15 text-emerald-600 flex items-center justify-center mb-1 transition-colors">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Add URL</span>
+      </button>
+
+      <!-- Add Torrent Split-Button with Magnet Dropdown -->
+      <div class="relative flex items-stretch rounded-xl hover:bg-white hover:shadow-sm transition-all group" id="torrent-split-container">
+        <button onclick="openMagnetModal()" class="flex flex-col items-center justify-center min-w-[70px] pl-3 pr-2 py-2 rounded-l-xl active:scale-[0.98] transition-all">
+          <div class="w-8 h-8 rounded-xl bg-indigo-500/10 group-hover:bg-indigo-500/15 text-indigo-600 flex items-center justify-center mb-1 transition-colors">
+            <!-- Magnet Glyph -->
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/>
+              <path d="m5 8 4 4"/>
+              <path d="m12 15 4 4"/>
+            </svg>
+          </div>
+          <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Add Torrent</span>
+        </button>
+
+        <!-- Dedicated Magnet Dropdown Arrow Trigger -->
+        <button id="magnet-dropdown-btn" onclick="toggleMagnetDropdown(event)" title="Torrent & Magnet Options" class="px-2 rounded-r-xl hover:bg-indigo-50/80 text-slate-500 hover:text-indigo-600 flex items-center justify-center border-l border-transparent group-hover:border-slate-200/70 transition-colors">
+          <svg class="w-3.5 h-3.5 transition-transform duration-150" id="magnet-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="h-9 w-[1px] bg-slate-200/80 mx-1 shrink-0"></div>
+
+      <!-- Resume -->
+      <button id="tb-resume" onclick="resumeSelected()" class="group flex flex-col items-center justify-center min-w-[68px] px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm disabled:opacity-45 disabled:pointer-events-none active:scale-[0.98] transition-all">
+        <div class="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Resume</span>
+      </button>
+
+      <!-- Stop -->
+      <button id="tb-stop" onclick="stopSelected()" class="group flex flex-col items-center justify-center min-w-[64px] px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm disabled:opacity-45 disabled:pointer-events-none active:scale-[0.98] transition-all">
+        <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Stop</span>
+      </button>
+
+      <!-- Stop All -->
+      <button onclick="stopAllDownloads()" class="group flex flex-col items-center justify-center min-w-[68px] px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm active:scale-[0.98] transition-all">
+        <div class="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/>
+            <path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/>
+            <path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/>
+            <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+          </svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Stop All</span>
+      </button>
+
+      <div class="h-9 w-[1px] bg-slate-200/80 mx-1 shrink-0"></div>
+
+      <!-- Delete -->
+      <button id="tb-delete" onclick="removeSelected(false)" class="group flex flex-col items-center justify-center min-w-[66px] px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm disabled:opacity-45 disabled:pointer-events-none active:scale-[0.98] transition-all">
+        <div class="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            <line x1="10" y1="11" x2="10" y2="17"/>
+            <line x1="14" y1="11" x2="14" y2="17"/>
+          </svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Delete</span>
+      </button>
+
+      <!-- Delete Completed -->
+      <button onclick="deleteAllCompleted()" class="group flex flex-col items-center justify-center min-w-[106px] px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm active:scale-[0.98] transition-all">
+        <div class="w-8 h-8 rounded-xl bg-pink-500/10 text-pink-600 flex items-center justify-center mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"/>
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            <path d="m9 14 2 2 4-4"/>
+          </svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Delete Completed</span>
+      </button>
+
+      <div class="h-9 w-[1px] bg-slate-200/80 mx-1 shrink-0"></div>
+
+      <!-- Options -->
+      <button onclick="openOptionsModal()" class="group flex flex-col items-center justify-center min-w-[68px] px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm active:scale-[0.98] transition-all">
+        <div class="w-8 h-8 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Options</span>
+      </button>
+
+      <!-- Scheduler -->
+      <button onclick="openSchedulerModal()" class="group flex flex-col items-center justify-center min-w-[74px] px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm active:scale-[0.98] transition-all">
+        <div class="w-8 h-8 rounded-xl bg-fuchsia-500/10 text-fuchsia-600 flex items-center justify-center mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="13" r="8"/>
+            <path d="M12 9v4l2 2"/>
+            <path d="M5 3 2 6"/>
+            <path d="m22 6-3-3"/>
+          </svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Scheduler</span>
+      </button>
+
+      <!-- Start Queue Split -->
+      <div class="relative flex items-stretch rounded-xl hover:bg-white hover:shadow-sm transition-all group">
+        <button onclick="startQueue()" class="flex flex-col items-center justify-center min-w-[72px] pl-3 pr-2 py-2 rounded-l-xl active:scale-[0.98] transition-all">
+          <div class="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center mb-1">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="14" height="14" rx="2"/>
+              <path d="M10 7v6"/>
+              <path d="m7 10 3 3 3-3"/>
+              <path d="M21 8v11a2 2 0 0 1-2 2H8"/>
+            </svg>
+          </div>
+          <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Start Queue</span>
+        </button>
+        <button onclick="toggleQueueDropdown(event, 'start')" class="px-1.5 rounded-r-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors">
+          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Stop Queue Split -->
+      <div class="relative flex items-stretch rounded-xl hover:bg-white hover:shadow-sm transition-all group">
+        <button onclick="stopQueue()" class="flex flex-col items-center justify-center min-w-[72px] pl-3 pr-2 py-2 rounded-l-xl active:scale-[0.98] transition-all">
+          <div class="w-8 h-8 rounded-xl bg-slate-500/10 text-slate-600 flex items-center justify-center mb-1">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="14" height="14" rx="2"/>
+              <rect x="8" y="8" width="4" height="4" rx="0.5" fill="currentColor" stroke="none"/>
+              <path d="M21 8v11a2 2 0 0 1-2 2H8"/>
+            </svg>
+          </div>
+          <span class="text-[11px] font-medium text-slate-700 whitespace-nowrap">Stop Queue</span>
+        </button>
+        <button onclick="toggleQueueDropdown(event, 'stop')" class="px-1.5 rounded-r-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors">
+          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- 4. Main Workspace (Padded Rounded Sidebar + Padded Rounded Data Table) -->
+    <main class="flex-1 flex flex-col md:flex-row gap-3 p-3 overflow-hidden bg-slate-100/70">
+
+      <!-- Left Padded Rounded Sidebar -->
+      <aside id="categories-sidebar" class="w-full md:w-64 shrink-0 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex flex-col overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Categories</span>
+          <button onclick="toggleSidebar()" title="Hide Categories" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Padded Category Tree List -->
+        <div id="category-tree" class="p-2.5 space-y-1 overflow-y-auto flex-1">
+          <!-- Rendered dynamically by JS -->
+        </div>
+
+        <!-- Quick Speed Limiter Status Pill inside Sidebar Bottom -->
+        <div class="p-3 border-t border-slate-100 bg-slate-50/60">
+          <button onclick="openSpeedLimiterModal()" class="w-full px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/80 shadow-2xs flex items-center justify-between text-xs transition-all">
+            <span class="flex items-center gap-2 font-medium text-slate-600">
+              <svg class="w-4 h-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m12 14 4-4"/>
+                <path d="M3.34 19a10 10 0 1 1 17.32 0"/>
+              </svg>
+              Speed Limiter
+            </span>
+            <span id="speed-limit-badge" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-semibold text-[11px]">Off</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Right Padded Rounded Data Table Card -->
+      <section class="flex-1 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex flex-col overflow-hidden min-w-0">
+        <!-- Optional Filter / Search Banner when Find is triggered -->
+        <div id="find-bar" class="hidden px-4 py-2.5 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-1 max-w-md">
+            <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input id="find-input" type="text" oninput="handleFindInput(this.value)" placeholder="Filter downloads by file name..." class="w-full bg-white text-xs text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15" />
+            <button onclick="findNextMatch()" class="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600 whitespace-nowrap">Find Next</button>
+          </div>
+          <button onclick="closeFindBar()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <!-- Scrollable Table Container -->
+        <div class="flex-1 overflow-auto">
+          <table class="w-full text-left border-collapse min-w-[920px]">
+            <thead class="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200/80 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              <tr>
+                <th class="py-3 pl-4 pr-3 w-24 cursor-pointer hover:text-slate-800" onclick="sortTable('source')">
+                  <div class="flex items-center gap-1.5">
+                    <span>Source</span>
+                    <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
+                </th>
+                <th class="py-3 px-3 min-w-[240px] cursor-pointer hover:text-slate-800" onclick="sortTable('name')">
+                  <div class="flex items-center justify-between">
+                    <span>File Name</span>
+                    <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
+                </th>
+                <th class="py-3 px-2 w-10 text-center">Q</th>
+                <th class="py-3 px-3 w-28 cursor-pointer hover:text-slate-800" onclick="sortTable('sizeBytes')">
+                  <div class="flex items-center justify-between">
+                    <span>Size</span>
+                    <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
+                </th>
+                <th class="py-3 px-3 w-36 cursor-pointer hover:text-slate-800" onclick="sortTable('status')">
+                  <div class="flex items-center justify-between">
+                    <span>Status</span>
+                    <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
+                </th>
+                <th class="py-3 px-3 w-28">
+                  <div class="flex items-center justify-between">
+                    <span>Time left</span>
+                    <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
+                </th>
+                <th class="py-3 px-3 w-32">
+                  <div class="flex items-center justify-between">
+                    <span>Transfer rate</span>
+                    <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
+                </th>
+                <th class="py-3 px-3 w-28">
+                  <div class="flex items-center justify-between">
+                    <span>Last Try</span>
+                    <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
+                </th>
+                <th class="py-3 pl-3 pr-4 w-44">
+                  <div class="flex items-center justify-between">
+                    <span>Added</span>
+                    <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="downloads-tbody" class="divide-y divide-slate-100 text-xs text-slate-700">
+              <!-- Populated dynamically by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- 5. Bottom Status Bar -->
+    <footer id="status-bar" class="h-9 px-4 bg-white border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+      <div class="flex items-center gap-3">
+        <span id="status-count" class="font-medium text-slate-600">7 downloads</span>
+        <span id="selection-indicator" class="hidden px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium text-[11px]"></span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="queue-indicator" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          Main Queue Active
+        </span>
+        <span id="status-transfer" class="font-medium text-slate-600">1 downloading, 1.666 MB/sec</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Floating Popup Layer (for Top Menus, Magnet Dropdown, Queue Dropdown, & Row Context Menu) -->
+  <div id="popup-layer" class="fixed inset-0 z-50 hidden" onclick="closeAllPopups()">
+    <div id="popup-menu-box" onclick="event.stopPropagation()" class="menu-popover fixed bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/90 p-1.5 min-w-[240px] text-xs text-slate-700">
+      <!-- Dynamic menu items rendered here -->
+    </div>
+  </div>
+
+  <!-- Floating Drop Target Widget (Toggled via Tasks > Show drop target) -->
+  <div id="drop-target-widget" class="hidden fixed bottom-14 right-6 z-40 w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl border-2 border-white flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform" onclick="openAddUrlModal()" title="Drop URLs here or click to Add URL">
+    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>
+    </svg>
+    <span class="text-[9px] font-bold tracking-wider uppercase mt-0.5">Drop</span>
+  </div>
+
+  <!-- Interactive Modal Backdrop -->
+  <div id="modal-backdrop" class="fixed inset-0 z-50 hidden bg-slate-900/30 backdrop-blur-xs flex items-center justify-center p-4" onclick="closeModal()">
+    <div id="modal-card" onclick="event.stopPropagation()" class="menu-popover w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden">
+      <!-- Dynamic Modal Content -->
+    </div>
+  </div>
+
+  <!-- Non-blocking Toast Notification -->
+  <div id="toast-container" class="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2"></div>
+
+  <script>
+    // =========================================================================
+    // 1. INITIAL DATA & APPLICATION STATE
+    // =========================================================================
+    let downloads = [
+      {
+        id: 1,
+        source: 'Web',
+        name: 'big-buck-bunny-1080p.mp4',
+        category: 'Video',
+        q: '',
+        size: '180.00 MB',
+        sizeBytes: 180 * 1024 * 1024,
+        status: 'Complete',
+        progress: 100,
+        timeLeft: '',
+        rate: '',
+        lastTry: 'Nov 07 2026',
+        added: 'Nov 07 23:06:04 2026'
+      },
+      {
+        id: 2,
+        source: 'Web',
+        name: 'project-report-2026.pdf',
+        category: 'Documents',
+        q: '',
+        size: '4.00 MB',
+        sizeBytes: 4 * 1024 * 1024,
+        status: 'Complete',
+        progress: 100,
+        timeLeft: '',
+        rate: '',
+        lastTry: 'Nov 07 2026',
+        added: 'Nov 07 23:06:05 2026'
+      },
+      {
+        id: 3,
+        source: 'Web',
+        name: 'holiday-photos.zip',
+        category: 'Compressed',
+        q: '',
+        size: '64.00 MB',
+        sizeBytes: 64 * 1024 * 1024,
+        status: 'Complete',
+        progress: 100,
+        timeLeft: '',
+        rate: '',
+        lastTry: 'Nov 07 2026',
+        added: 'Nov 07 23:06:05 2026'
+      },
+      {
+        id: 4,
+        source: 'Web',
+        name: 'podcast-episode-42.mp3',
+        category: 'Music',
+        q: '',
+        size: '38.00 MB',
+        sizeBytes: 38 * 1024 * 1024,
+        status: 'Complete',
+        progress: 100,
+        timeLeft: '',
+        rate: '',
+        lastTry: 'Nov 07 2026',
+        added: 'Nov 07 23:06:06 2026'
+      },
+      {
+        id: 5,
+        source: 'Web',
+        name: 'rust-1.99.1-x86_64-pc-windows-msvc.msi',
+        category: 'Programs',
+        q: '',
+        size: '92.00 MB',
+        sizeBytes: 92 * 1024 * 1024,
+        status: 'Complete',
+        progress: 100,
+        timeLeft: '',
+        rate: '',
+        lastTry: 'Nov 07 2026',
+        added: 'Nov 07 23:06:06 2026'
+      },
+      {
+        id: 6,
+        source: 'Web',
+        name: 'open-data-2026.csv',
+        category: 'Documents',
+        q: '',
+        size: '12.00 MB',
+        sizeBytes: 12 * 1024 * 1024,
+        status: 'Complete',
+        progress: 100,
+        timeLeft: '',
+        rate: '',
+        lastTry: 'Nov 07 2026',
+        added: 'Nov 07 23:06:07 2026'
+      },
+      {
+        id: 7,
+        source: 'Web',
+        name: 'ubuntu-26.04-desktop-amd64.iso',
+        category: 'Programs',
+        q: '',
+        size: '6.00 GB',
+        sizeBytes: 6 * 1024 * 1024 * 1024,
+        status: 'Downloading',
+        progress: 1.69,
+        timeLeft: '1 hour(s) 0...',
+        rate: '1.666 MB/sec',
+        lastTry: 'Nov 07 2026',
+        added: 'Nov 07 23:06:07 2026'
+      }
+    ];
+
+    let state = {
+      activeCategory: 'All Downloads',
+      expandedNodes: {
+        'All Downloads': true,
+        'Unfinished': false,
+        'Finished': false,
+        'Queues': false
+      },
+      selectedIds: new Set([7]),
+      activeMenu: null,
+      searchQuery: '',
+      showDropTarget: false,
+      showSidebar: true,
+      showStatusBar: true,
+      speedLimit: null, // null or number in KB/s
+      queueRunning: true,
+      sortField: null,
+      sortAsc: true,
+      nextId: 8
+    };
+
+    // =========================================================================
+    // 2. SVG GLYPH ICON HELPER LIBRARY
+    // =========================================================================
+    const Glyphs = {
+      plus: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+      filePlus: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`,
+      magnet: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/><path d="m5 8 4 4"/><path d="m12 15 4 4"/></svg>`,
+      sliders: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`,
+      layers: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
+      clipboard: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>`,
+      video: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
+      link: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+      rss: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>`,
+      target: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+      upload: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+      download: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+      logOut: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
+      stopCircle: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>`,
+      trash: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+      trashAlert: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`,
+      play: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
+      refresh: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+      pause: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`,
+      hand: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="8" y="8" width="8" height="8"/></svg>`,
+      checkSquare: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+      search: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+      arrowRight: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`,
+      clock: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+      gauge: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>`,
+      settings: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+      sidebar: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>`,
+      info: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+      check: `<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+    };
+
+    // File type glyph badges for rows
+    function getFileGlyph(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      if (['mp4', 'mkv', 'avi', 'mov'].includes(ext)) {
+        return `<div class="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        </div>`;
+      }
+      if (['pdf'].includes(ext)) {
+        return `<div class="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shrink-0 font-bold text-[9px]">PDF</div>`;
+      }
+      if (['zip', 'rar', '7z', 'tar'].includes(ext)) {
+        return `<div class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+        </div>`;
+      }
+      if (['mp3', 'wav', 'flac', 'aac'].includes(ext)) {
+        return `<div class="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>`;
+      }
+      if (['msi', 'exe', 'dmg', 'iso'].includes(ext)) {
+        return `<div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>`;
+      }
+      return `<div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 border border-slate-200/70 flex items-center justify-center shrink-0">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>`;
+    }
+
+    // =========================================================================
+    // 3. TOP MENU BAR DEFINITIONS (Exact Items Requested by User)
+    // =========================================================================
+    function getMenuDefinitions() {
+      const hasSelection = state.selectedIds.size > 0;
+      return {
+        Tasks: [
+          { label: 'Add new download', icon: Glyphs.plus, color: 'text-emerald-600', action: () => openAddUrlModal() },
+          { label: 'Open torrent file...', icon: Glyphs.filePlus, color: 'text-indigo-600', action: () => openTorrentFilePicker() },
+          { label: 'Add magnet link...', icon: Glyphs.magnet, color: 'text-indigo-600', action: () => openMagnetModal() },
+          { label: 'Torrent settings...', icon: Glyphs.sliders, color: 'text-slate-600', action: () => openOptionsModal('Torrent') },
+          { divider: true },
+          { label: 'Add batch download', icon: Glyphs.layers, color: 'text-sky-600', action: () => openBatchModal() },
+          { label: 'Add batch download from clipboard', icon: Glyphs.clipboard, color: 'text-sky-600', action: () => addFromClipboard() },
+          { label: 'Download video from a page...', icon: Glyphs.video, color: 'text-purple-600', action: () => openAddUrlModal('https://example.com/stream-video.mp4') },
+          { label: 'Link grabber...', icon: Glyphs.link, color: 'text-teal-600', action: () => openLinkGrabberModal() },
+          { label: 'RSS feeds...', icon: Glyphs.rss, color: 'text-orange-500', action: () => openRssModal() },
+          { divider: true },
+          { label: 'Show drop target', icon: Glyphs.target, color: 'text-emerald-600', checked: state.showDropTarget, action: () => toggleDropTarget() },
+          { label: 'Export', icon: Glyphs.upload, color: 'text-slate-600', action: () => exportDownloads() },
+          { label: 'Import', icon: Glyphs.download, color: 'text-slate-600', action: () => showToast('Import dialog ready — select a .mdm or .txt list') },
+          { divider: true },
+          { label: 'Exit', icon: Glyphs.logOut, color: 'text-rose-600', action: () => showToast('Mister Download Manager session saved safely') }
+        ],
+        File: [
+          { label: 'Stop Download', icon: Glyphs.stopCircle, color: 'text-amber-600', disabled: !hasSelection, action: () => stopSelected() },
+          { label: 'Remove', shortcut: 'Delete', icon: Glyphs.trash, color: 'text-rose-600', disabled: !hasSelection, action: () => removeSelected(false) },
+          { label: 'Remove with files', shortcut: 'Shift+Delete', icon: Glyphs.trashAlert, color: 'text-rose-600', disabled: !hasSelection, action: () => removeSelected(true) },
+          { divider: true },
+          { label: 'Download Now', icon: Glyphs.play, color: 'text-emerald-600', disabled: !hasSelection, action: () => resumeSelected() },
+          { label: 'Redownload', icon: Glyphs.refresh, color: 'text-sky-600', disabled: !hasSelection, action: () => redownloadSelected() }
+        ],
+        Downloads: [
+          { label: 'Pause All', icon: Glyphs.pause, color: 'text-amber-600', action: () => stopAllDownloads('Paused') },
+          { label: 'Stop All', icon: Glyphs.hand, color: 'text-orange-600', action: () => stopAllDownloads('Stopped') },
+          { label: 'Delete All Completed', icon: Glyphs.checkSquare, color: 'text-pink-600', action: () => deleteAllCompleted() },
+          { divider: true },
+          { label: 'Find', shortcut: 'Ctrl+F', icon: Glyphs.search, color: 'text-slate-600', action: () => openFindBar() },
+          { label: 'Find Next', shortcut: 'F3', icon: Glyphs.arrowRight, color: 'text-slate-600', action: () => findNextMatch() },
+          { label: 'Select all', shortcut: 'Ctrl+A', icon: Glyphs.checkSquare, color: 'text-emerald-600', action: () => selectAllRows() },
+          { divider: true },
+          { label: 'Scheduler', icon: Glyphs.clock, color: 'text-fuchsia-600', action: () => openSchedulerModal() },
+          { label: 'Start queue', icon: Glyphs.play, color: 'text-teal-600', action: () => startQueue() },
+          { label: 'Stop queue', icon: Glyphs.stopCircle, color: 'text-slate-600', action: () => stopQueue() },
+          { label: 'Speed Limiter', icon: Glyphs.gauge, color: 'text-emerald-600', action: () => openSpeedLimiterModal() },
+          { divider: true },
+          { label: 'Options', icon: Glyphs.settings, color: 'text-violet-600', action: () => openOptionsModal() }
+        ],
+        View: [
+          { label: 'Categories Sidebar', icon: Glyphs.sidebar, color: 'text-slate-600', checked: state.showSidebar, action: () => toggleSidebar() },
+          { label: 'Floating Drop Target', icon: Glyphs.target, color: 'text-emerald-600', checked: state.showDropTarget, action: () => toggleDropTarget() },
+          { label: 'Status Bar', icon: Glyphs.info, color: 'text-slate-600', checked: state.showStatusBar, action: () => toggleStatusBar() }
+        ],
+        Help: [
+          { label: 'Keyboard Shortcuts', icon: Glyphs.info, color: 'text-sky-600', action: () => openShortcutsModal() },
+          { label: 'About Mister Download Manager 0.5.0', icon: Glyphs.info, color: 'text-emerald-600', action: () => openAboutModal() }
+        ]
+      };
+    }
+
+    // Magnet Toolbar Dropdown Items (Exact Items Requested by User)
+    function getMagnetDropdownItems() {
+      return [
+        { label: 'Open torrent file...', icon: Glyphs.filePlus, color: 'text-indigo-600', action: () => openTorrentFilePicker() },
+        { label: 'Add magnet link...', icon: Glyphs.magnet, color: 'text-indigo-600', action: () => openMagnetModal() },
+        { divider: true },
+        { label: 'RSS feeds...', icon: Glyphs.rss, color: 'text-orange-500', action: () => openRssModal() },
+        { label: 'Torrent settings...', icon: Glyphs.sliders, color: 'text-slate-600', action: () => openOptionsModal('Torrent') }
+      ];
+    }
+
+    // =========================================================================
+    // 4. RENDERING FUNCTIONS (Menu Bar, Popups, Sidebar, Table, Status)
+    // =========================================================================
+    function renderTopMenuBar() {
+      const nav = document.getElementById('top-menubar');
+      const menuNames = ['Tasks', 'File', 'Downloads', 'View', 'Help'];
+      nav.innerHTML = menuNames.map(name => {
+        const isActive = state.activeMenu === name;
+        return `
+          <button
+            id="menu-btn-${name}"
+            onclick="toggleTopMenu(event, '${name}')"
+            onmouseenter="hoverTopMenu('${name}')"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              isActive
+                ? 'bg-emerald-500/12 text-emerald-700 font-semibold shadow-2xs'
+                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+            }"
+          >
+            ${name}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function openPopupMenu(items, anchorRect, alignRight = false) {
+      const layer = document.getElementById('popup-layer');
+      const box = document.getElementById('popup-menu-box');
+
+      box.innerHTML = items.map((item, idx) => {
+        if (item.divider) {
+          return `<div class="my-1.5 mx-2 h-[1px] bg-slate-200/80"></div>`;
+        }
+        const disabledClass = item.disabled
+          ? 'opacity-40 pointer-events-none'
+          : 'hover:bg-slate-100/90 active:bg-slate-200/70 cursor-pointer';
+
+        return `
+          <button
+            onclick="executePopupAction(${idx})"
+            class="w-full px-3 py-2 rounded-xl flex items-center justify-between gap-4 text-left transition-colors ${disabledClass}"
+          >
+            <span class="flex items-center gap-2.5">
+              <span class="${item.color || 'text-slate-500'} shrink-0">${item.icon || ''}</span>
+              <span class="font-medium text-slate-700 whitespace-nowrap">${item.label}</span>
+            </span>
+            <span class="flex items-center gap-2 shrink-0">
+              ${item.checked ? `<span class="text-emerald-600">${Glyphs.check}</span>` : ''}
+              ${item.shortcut ? `<span class="text-[11px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">${item.shortcut}</span>` : ''}
+            </span>
+          </button>
+        `;
+      }).join('');
+
+      window._currentPopupItems = items;
+      layer.classList.remove('hidden');
+
+      // Position popup cleanly below anchor
+      const top = Math.min(anchorRect.bottom + 6, window.innerHeight - 420);
+      let left = alignRight ? anchorRect.right - 250 : anchorRect.left;
+      left = Math.max(8, Math.min(left, window.innerWidth - 280));
+
+      box.style.top = `${top}px`;
+      box.style.left = `${left}px`;
+    }
+
+    function executePopupAction(idx) {
+      const items = window._currentPopupItems || [];
+      const item = items[idx];
+      closeAllPopups();
+      if (item && !item.disabled && typeof item.action === 'function') {
+        item.action();
+      }
+    }
+
+    function toggleTopMenu(e, menuName) {
+      e.stopPropagation();
+      if (state.activeMenu === menuName) {
+        closeAllPopups();
+        return;
+      }
+      state.activeMenu = menuName;
+      renderTopMenuBar();
+      const btn = document.getElementById(`menu-btn-${menuName}`);
+      const rect = btn.getBoundingClientRect();
+      const menus = getMenuDefinitions();
+      openPopupMenu(menus[menuName], rect);
+    }
+
+    function hoverTopMenu(menuName) {
+      if (state.activeMenu && state.activeMenu !== menuName) {
+        state.activeMenu = menuName;
+        renderTopMenuBar();
+        const btn = document.getElementById(`menu-btn-${menuName}`);
+        const rect = btn.getBoundingClientRect();
+        const menus = getMenuDefinitions();
+        openPopupMenu(menus[menuName], rect);
+      }
+    }
+
+    function toggleMagnetDropdown(e) {
+      e.stopPropagation();
+      if (state.activeMenu === 'MAGNET') {
+        closeAllPopups();
+        return;
+      }
+      state.activeMenu = 'MAGNET';
+      renderTopMenuBar();
+      document.getElementById('magnet-chevron').classList.add('rotate-180');
+      const container = document.getElementById('torrent-split-container');
+      openPopupMenu(getMagnetDropdownItems(), container.getBoundingClientRect());
+    }
+
+    function toggleQueueDropdown(e, type) {
+      e.stopPropagation();
+      const key = `QUEUE_${type}`;
+      if (state.activeMenu === key) {
+        closeAllPopups();
+        return;
+      }
+      state.activeMenu = key;
+      renderTopMenuBar();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const items = type === 'start'
+        ? [
+            { label: 'Start Main Download Queue', icon: Glyphs.play, color: 'text-teal-600', action: () => startQueue() },
+            { label: 'Start Synchronization Queue', icon: Glyphs.refresh, color: 'text-sky-600', action: () => showToast('Synchronization Queue started') }
+          ]
+        : [
+            { label: 'Stop Main Download Queue', icon: Glyphs.stopCircle, color: 'text-amber-600', action: () => stopQueue() },
+            { label: 'Stop All Queues', icon: Glyphs.hand, color: 'text-rose-600', action: () => stopQueue() }
+          ];
+      openPopupMenu(items, rect);
+    }
+
+    function closeAllPopups() {
+      state.activeMenu = null;
+      document.getElementById('popup-layer').classList.add('hidden');
+      const chev = document.getElementById('magnet-chevron');
+      if (chev) chev.classList.remove('rotate-180');
+      renderTopMenuBar();
+    }
+
+    // =========================================================================
+    // 5. SIDEBAR CATEGORY TREE RENDERING
+    // =========================================================================
+    function renderSidebar() {
+      const totalCount = downloads.length;
+      const unfinishedCount = downloads.filter(d => d.status !== 'Complete').length;
+      const finishedCount = downloads.filter(d => d.status === 'Complete').length;
+
+      const subCategories = [
+        {
+          name: 'Compressed',
+          count: downloads.filter(d => d.category === 'Compressed').length,
+          icon: `<svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>`
+        },
+        {
+          name: 'Documents',
+          count: downloads.filter(d => d.category === 'Documents').length,
+          icon: `<svg class="w-4 h-4 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`
+        },
+        {
+          name: 'Music',
+          count: downloads.filter(d => d.category === 'Music').length,
+          icon: `<svg class="w-4 h-4 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`
+        },
+        {
+          name: 'Programs',
+          count: downloads.filter(d => d.category === 'Programs').length,
+          icon: `<svg class="w-4 h-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>`
+        },
+        {
+          name: 'Video',
+          count: downloads.filter(d => d.category === 'Video').length,
+          icon: `<svg class="w-4 h-4 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>`
+        },
+        {
+          name: 'Torrents',
+          count: downloads.filter(d => d.category === 'Torrents' || d.source === 'Torrent').length,
+          icon: `<svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/></svg>`
+        }
+      ];
+
+      const treeEl = document.getElementById('category-tree');
+      const isAllExpanded = state.expandedNodes['All Downloads'];
+
+      const renderNodeButton = (name, count, iconSvg, indent = false, hasChildren = false) => {
+        const isSelected = state.activeCategory === name;
+        const expanded = state.expandedNodes[name];
+
+        return `
+          <div
+            onclick="selectCategory('${name}')"
+            class="group flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition-all ${
+              indent ? 'ml-5' : ''
+            } ${
+              isSelected
+                ? 'bg-emerald-500/12 text-emerald-800 font-semibold shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 font-medium'
+            }"
+          >
+            <div class="flex items-center gap-2 min-w-0">
+              ${hasChildren ? `
+                <button
+                  onclick="event.stopPropagation(); toggleExpandNode('${name}')"
+                  class="w-4 h-4 rounded-md hover:bg-slate-200/80 flex items-center justify-center text-slate-400 transition-transform ${expanded ? 'rotate-90' : ''}"
+                >
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              ` : `<span class="w-1"></span>`}
+              ${iconSvg}
+              <span class="text-xs truncate">${name}</span>
+            </div>
+            ${count !== null ? `
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                isSelected ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-white'
+              }">
+                ${count}
+              </span>
+            ` : ''}
+          </div>
+        `;
+      };
+
+      const folderAmber = `<svg class="w-4 h-4 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+      const folderUnfinished = `<svg class="w-4 h-4 text-sky-500 shrink-0" viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+      const folderFinished = `<svg class="w-4 h-4 text-emerald-500 shrink-0" viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+      const folderQueues = `<svg class="w-4 h-4 text-violet-500 shrink-0" viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+
+      let html = renderNodeButton('All Downloads', totalCount, folderAmber, false, true);
+
+      if (isAllExpanded) {
+        html += `<div class="space-y-0.5 pt-0.5 pb-1">`;
+        subCategories.forEach(sub => {
+          html += renderNodeButton(sub.name, sub.count > 0 ? sub.count : null, sub.icon, true, false);
+        });
+        html += `</div>`;
+      }
+
+      html += renderNodeButton('Unfinished', unfinishedCount, folderUnfinished, false, true);
+      if (state.expandedNodes['Unfinished']) {
+        html += `<div class="space-y-0.5 pt-0.5 pb-1">`;
+        subCategories.slice(0, 5).forEach(sub => {
+          html += renderNodeButton(sub.name, null, sub.icon, true, false);
+        });
+        html += `</div>`;
+      }
+
+      html += renderNodeButton('Finished', finishedCount, folderFinished, false, true);
+      if (state.expandedNodes['Finished']) {
+        html += `<div class="space-y-0.5 pt-0.5 pb-1">`;
+        subCategories.slice(0, 5).forEach(sub => {
+          html += renderNodeButton(sub.name, null, sub.icon, true, false);
+        });
+        html += `</div>`;
+      }
+
+      html += renderNodeButton('Queues', null, folderQueues, false, true);
+      if (state.expandedNodes['Queues']) {
+        html += `<div class="space-y-0.5 pt-0.5 pb-1">
+          ${renderNodeButton('Main Download Queue', null, Glyphs.play, true, false)}
+          ${renderNodeButton('Synchronization Queue', null, Glyphs.refresh, true, false)}
+        </div>`;
+      }
+
+      treeEl.innerHTML = html;
+    }
+
+    function toggleExpandNode(name) {
+      state.expandedNodes[name] = !state.expandedNodes[name];
+      renderSidebar();
+    }
+
+    function selectCategory(name) {
+      state.activeCategory = name;
+      renderSidebar();
+      renderTable();
+    }
+
+    // =========================================================================
+    // 6. DOWNLOADS TABLE & TOOLBAR STATE RENDERING
+    // =========================================================================
+    function getFilteredDownloads() {
+      let list = [...downloads];
+
+      // Filter by active category
+      const cat = state.activeCategory;
+      if (cat === 'Unfinished') {
+        list = list.filter(d => d.status !== 'Complete');
+      } else if (cat === 'Finished') {
+        list = list.filter(d => d.status === 'Complete');
+      } else if (cat === 'Torrents') {
+        list = list.filter(d => d.category === 'Torrents' || d.source === 'Torrent');
+      } else if (['Compressed', 'Documents', 'Music', 'Programs', 'Video'].includes(cat)) {
+        list = list.filter(d => d.category === cat);
+      }
+
+      // Filter by Find query
+      if (state.searchQuery.trim() !== '') {
+        const q = state.searchQuery.toLowerCase();
+        list = list.filter(d => d.name.toLowerCase().includes(q));
+      }
+
+      // Sorting
+      if (state.sortField) {
+        list.sort((a, b) => {
+          const valA = a[state.sortField];
+          const valB = b[state.sortField];
+          if (valA < valB) return state.sortAsc ? -1 : 1;
+          if (valA > valB) return state.sortAsc ? 1 : -1;
+          return 0;
+        });
+      }
+
+      return list;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('downloads-tbody');
+      const visible = getFilteredDownloads();
+
+      if (visible.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="py-16 text-center">
+              <div class="flex flex-col items-center justify-center text-slate-400">
+                <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3 text-slate-400">
+                  ${Glyphs.download}
+                </div>
+                <p class="text-sm font-medium text-slate-600">No downloads in "${state.activeCategory}"</p>
+                <p class="text-xs text-slate-400 mt-1">Click "Add URL" or "Add Torrent" to start a new download.</p>
+              </div>
+            </td>
+          </tr>
+        `;
+      } else {
+        tbody.innerHTML = visible.map(item => {
+          const isSelected = state.selectedIds.has(item.id);
+          const isComplete = item.status === 'Complete';
+          const isDownloading = item.status === 'Downloading';
+
+          let statusBadge = '';
+          if (isComplete) {
+            statusBadge = `<span class="inline-flex items-center gap-1.5 font-medium text-slate-700">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Complete
+            </span>`;
+          } else {
+            const pct = item.progress.toFixed(2);
+            statusBadge = `
+              <div class="flex flex-col gap-1">
+                <div class="flex items-center justify-between text-[11px] font-semibold ${isDownloading ? 'text-emerald-700' : 'text-amber-700'}">
+                  <span>${pct}%</span>
+                  <span class="text-[10px] font-normal text-slate-400">${item.status}</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-300 ${isDownloading ? 'bg-emerald-500' : 'bg-amber-400'}" style="width: ${Math.min(100, Math.max(3, item.progress))}%"></div>
+                </div>
+              </div>
+            `;
+          }
+
+          return `
+            <tr
+              onclick="handleRowClick(event, ${item.id})"
+              oncontextmenu="handleRowContextMenu(event, ${item.id})"
+              class="cursor-pointer transition-colors ${
+                isSelected
+                  ? 'bg-emerald-500/10 hover:bg-emerald-500/15'
+                  : 'hover:bg-slate-50/90'
+              }"
+            >
+              <td class="py-2.5 pl-4 pr-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white shadow-2xs ${
+                  item.source === 'Torrent' ? 'bg-indigo-500' : 'bg-emerald-600'
+                }">
+                  ${item.source}
+                </span>
+              </td>
+              <td class="py-2.5 px-3">
+                <div class="flex items-center gap-2.5">
+                  ${getFileGlyph(item.name)}
+                  <span class="font-medium text-slate-800 truncate max-w-[260px]" title="${item.name}">${item.name}</span>
+                </div>
+              </td>
+              <td class="py-2.5 px-2 text-center text-slate-400 font-medium">${item.q}</td>
+              <td class="py-2.5 px-3 font-medium text-slate-600 whitespace-nowrap">${item.size}</td>
+              <td class="py-2.5 px-3">${statusBadge}</td>
+              <td class="py-2.5 px-3 text-slate-500 whitespace-nowrap">${item.timeLeft}</td>
+              <td class="py-2.5 px-3 font-medium text-slate-600 whitespace-nowrap">${item.rate}</td>
+              <td class="py-2.5 px-3 text-slate-500 whitespace-nowrap">${item.lastTry}</td>
+              <td class="py-2.5 pl-3 pr-4 text-slate-500 whitespace-nowrap">${item.added}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      updateToolbarAndStatus();
+    }
+
+    function updateToolbarAndStatus() {
+      const selectedItems = downloads.filter(d => state.selectedIds.has(d.id));
+      const hasSelection = selectedItems.length > 0;
+      const canResume = selectedItems.some(d => d.status !== 'Complete' && d.status !== 'Downloading');
+      const canStop = selectedItems.some(d => d.status === 'Downloading');
+
+      document.getElementById('tb-resume').disabled = !canResume;
+      document.getElementById('tb-stop').disabled = !canStop;
+      document.getElementById('tb-delete').disabled = !hasSelection;
+
+      // Status bar counts
+      const visible = getFilteredDownloads();
+      document.getElementById('status-count').textContent = `${visible.length} download${visible.length === 1 ? '' : 's'}`;
+
+      const selBadge = document.getElementById('selection-indicator');
+      if (hasSelection) {
+        selBadge.classList.remove('hidden');
+        selBadge.textContent = `${selectedItems.length} selected`;
+      } else {
+        selBadge.classList.add('hidden');
+      }
+
+      const activeDownloads = downloads.filter(d => d.status === 'Downloading');
+      const transferEl = document.getElementById('status-transfer');
+      if (activeDownloads.length > 0) {
+        const rateText = state.speedLimit
+          ? `${(state.speedLimit / 1024).toFixed(2)} MB/sec (Limited)`
+          : activeDownloads[0].rate || '1.666 MB/sec';
+        transferEl.textContent = `${activeDownloads.length} downloading, ${rateText}`;
+      } else {
+        transferEl.textContent = '0 downloading, 0 KB/sec';
+      }
+    }
+
+    // =========================================================================
+    // 7. ROW SELECTION, CONTEXT MENU, AND ACTIONS
+    // =========================================================================
+    function handleRowClick(e, id) {
+      if (e.ctrlKey || e.metaKey) {
+        if (state.selectedIds.has(id)) {
+          state.selectedIds.delete(id);
+        } else {
+          state.selectedIds.add(id);
+        }
+      } else {
+        state.selectedIds.clear();
+        state.selectedIds.add(id);
+      }
+      renderTable();
+    }
+
+    function handleRowContextMenu(e, id) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!state.selectedIds.has(id)) {
+        state.selectedIds.clear();
+        state.selectedIds.add(id);
+        renderTable();
+      }
+      const menus = getMenuDefinitions();
+      openPopupMenu(menus.File, { left: e.clientX, bottom: e.clientY, right: e.clientX });
+    }
+
+    function selectAllRows() {
+      const visible = getFilteredDownloads();
+      visible.forEach(d => state.selectedIds.add(d.id));
+      renderTable();
+      showToast(`Selected all ${visible.length} downloads`);
+    }
+
+    function resumeSelected() {
+      let count = 0;
+      downloads.forEach(d => {
+        if (state.selectedIds.has(d.id) && d.status !== 'Complete') {
+          d.status = 'Downloading';
+          d.rate = state.speedLimit ? `${(state.speedLimit / 1024).toFixed(3)} MB/sec` : '1.666 MB/sec';
+          d.timeLeft = '1 hour(s) 0...';
+          count++;
+        }
+      });
+      renderSidebar();
+      renderTable();
+      if (count > 0) showToast(`Started ${count} download(s)`);
+    }
+
+    function stopSelected() {
+      let count = 0;
+      downloads.forEach(d => {
+        if (state.selectedIds.has(d.id) && d.status === 'Downloading') {
+          d.status = 'Stopped';
+          d.rate = '';
+          d.timeLeft = '';
+          count++;
+        }
+      });
+      renderSidebar();
+      renderTable();
+      if (count > 0) showToast(`Stopped ${count} download(s)`);
+    }
+
+    function stopAllDownloads(label = 'Stopped') {
+      let count = 0;
+      downloads.forEach(d => {
+        if (d.status === 'Downloading') {
+          d.status = label;
+          d.rate = '';
+          d.timeLeft = '';
+          count++;
+        }
+      });
+      renderSidebar();
+      renderTable();
+      showToast(`${label} all active transfers (${count})`);
+    }
+
+    function redownloadSelected() {
+      downloads.forEach(d => {
+        if (state.selectedIds.has(d.id)) {
+          d.status = 'Downloading';
+          d.progress = 0.5;
+          d.rate = '2.450 MB/sec';
+          d.timeLeft = '0 hour(s) 42...';
+        }
+      });
+      renderSidebar();
+      renderTable();
+      showToast('Restarted selected download(s)');
+    }
+
+    function removeSelected(withFiles) {
+      if (state.selectedIds.size === 0) return;
+      const count = state.selectedIds.size;
+      downloads = downloads.filter(d => !state.selectedIds.has(d.id));
+      state.selectedIds.clear();
+      renderSidebar();
+      renderTable();
+      showToast(withFiles ? `Removed ${count} item(s) and deleted local files` : `Removed ${count} item(s) from list`);
+    }
+
+    function deleteAllCompleted() {
+      const before = downloads.length;
+      downloads = downloads.filter(d => d.status !== 'Complete');
+      const removed = before - downloads.length;
+      state.selectedIds.clear();
+      renderSidebar();
+      renderTable();
+      showToast(`Cleared ${removed} completed download(s)`);
+    }
+
+    function startQueue() {
+      state.queueRunning = true;
+      document.getElementById('queue-indicator').classList.remove('hidden');
+      resumeSelected();
+      showToast('Main Download Queue started');
+    }
+
+    function stopQueue() {
+      state.queueRunning = false;
+      document.getElementById('queue-indicator').classList.add('hidden');
+      stopAllDownloads('Queued');
+      showToast('Main Download Queue stopped');
+    }
+
+    function sortTable(field) {
+      if (state.sortField === field) {
+        state.sortAsc = !state.sortAsc;
+      } else {
+        state.sortField = field;
+        state.sortAsc = true;
+      }
+      renderTable();
+    }
+
+    // =========================================================================
+    // 8. VIEW TOGGLES & FIND BAR
+    // =========================================================================
+    function toggleSidebar() {
+      state.showSidebar = !state.showSidebar;
+      const sb = document.getElementById('categories-sidebar');
+      sb.classList.toggle('hidden', !state.showSidebar);
+    }
+
+    function toggleDropTarget() {
+      state.showDropTarget = !state.showDropTarget;
+      const dt = document.getElementById('drop-target-widget');
+      dt.classList.toggle('hidden', !state.showDropTarget);
+      showToast(state.showDropTarget ? 'Floating Drop Target shown' : 'Floating Drop Target hidden');
+    }
+
+    function toggleStatusBar() {
+      state.showStatusBar = !state.showStatusBar;
+      document.getElementById('status-bar').classList.toggle('hidden', !state.showStatusBar);
+    }
+
+    function toggleMaximize() {
+      const win = document.getElementById('app-window');
+      document.body.classList.toggle('p-0');
+      win.classList.toggle('rounded-none');
+      win.classList.toggle('max-w-none');
+    }
+
+    function openFindBar() {
+      const bar = document.getElementById('find-bar');
+      bar.classList.remove('hidden');
+      const input = document.getElementById('find-input');
+      input.focus();
+    }
+
+    function closeFindBar() {
+      document.getElementById('find-bar').classList.add('hidden');
+      state.searchQuery = '';
+      document.getElementById('find-input').value = '';
+      renderTable();
+    }
+
+    function handleFindInput(val) {
+      state.searchQuery = val;
+      renderTable();
+    }
+
+    function findNextMatch() {
+      const visible = getFilteredDownloads();
+      if (visible.length === 0) {
+        openFindBar();
+        return;
+      }
+      const currentId = [...state.selectedIds][0];
+      const idx = visible.findIndex(d => d.id === currentId);
+      const next = visible[(idx + 1) % visible.length];
+      state.selectedIds.clear();
+      state.selectedIds.add(next.id);
+      renderTable();
+    }
+
+    // =========================================================================
+    // 9. INTERACTIVE MODALS (Add URL, Magnet, Options, Speed Limiter, etc.)
+    // =========================================================================
+    function openModal(html) {
+      const backdrop = document.getElementById('modal-backdrop');
+      const card = document.getElementById('modal-card');
+      card.innerHTML = html;
+      backdrop.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-backdrop').classList.add('hidden');
+    }
+
+    function openAddUrlModal(prefill = 'https://releases.ubuntu.com/26.04/ubuntu-26.04.1-server-amd64.iso') {
+      openModal(`
+        <div class="p-5">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/12 text-emerald-600 flex items-center justify-center">
+              ${Glyphs.plus}
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Add New Download</h3>
+              <p class="text-xs text-slate-500">Enter a direct HTTP/HTTPS/FTP file URL</p>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Address (URL)</label>
+              <input id="modal-url-input" type="text" value="${prefill}" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Category</label>
+              <select id="modal-cat-select" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white focus:outline-none focus:border-emerald-500">
+                <option value="Programs">Programs</option>
+                <option value="Video">Video</option>
+                <option value="Compressed">Compressed</option>
+                <option value="Documents">Documents</option>
+                <option value="Music">Music</option>
+              </select>
+            </div>
+          </div>
+          <div class="mt-5 flex items-center justify-end gap-2">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+            <button onclick="submitNewUrl()" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors">Start Download</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function submitNewUrl() {
+      const url = document.getElementById('modal-url-input').value.trim();
+      const category = document.getElementById('modal-cat-select').value;
+      if (!url) return;
+      const fileName = url.split('/').pop().split('?')[0] || `download-${state.nextId}.bin`;
+      downloads.unshift({
+        id: state.nextId++,
+        source: 'Web',
+        name: fileName,
+        category,
+        q: '',
+        size: '1.25 GB',
+        sizeBytes: 1.25 * 1024 * 1024 * 1024,
+        status: 'Downloading',
+        progress: 0.4,
+        timeLeft: '0 hour(s) 12...',
+        rate: '1.850 MB/sec',
+        lastTry: 'Nov 14 2026',
+        added: 'Nov 14 02:53:00 2026'
+      });
+      closeModal();
+      renderSidebar();
+      renderTable();
+      showToast(`Added "${fileName}" to queue`);
+    }
+
+    function openMagnetModal() {
+      openModal(`
+        <div class="p-5">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/12 text-indigo-600 flex items-center justify-center">
+              ${Glyphs.magnet}
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Add Magnet Link</h3>
+              <p class="text-xs text-slate-500">Paste a magnet:?xt=urn:btih:... URI below</p>
+            </div>
+          </div>
+          <div>
+            <textarea id="modal-magnet-input" rows="3" placeholder="magnet:?xt=urn:btih:..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15">magnet:?xt=urn:btih:9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e&dn=fedora-workstation-43-x86_64.iso</textarea>
+          </div>
+          <div class="mt-5 flex items-center justify-end gap-2">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+            <button onclick="submitMagnetLink()" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors">Add Torrent</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function submitMagnetLink() {
+      const raw = document.getElementById('modal-magnet-input').value.trim();
+      if (!raw) return;
+      const dnMatch = raw.match(/dn=([^&]+)/);
+      const name = dnMatch ? decodeURIComponent(dnMatch[1]) : `torrent-package-${state.nextId}.torrent`;
+      downloads.unshift({
+        id: state.nextId++,
+        source: 'Torrent',
+        name,
+        category: 'Torrents',
+        q: '',
+        size: '2.40 GB',
+        sizeBytes: 2.4 * 1024 * 1024 * 1024,
+        status: 'Downloading',
+        progress: 0.25,
+        timeLeft: '0 hour(s) 24...',
+        rate: '1.720 MB/sec',
+        lastTry: 'Nov 14 2026',
+        added: 'Nov 14 02:53:12 2026'
+      });
+      closeModal();
+      renderSidebar();
+      renderTable();
+      showToast(`Magnet added: "${name}"`);
+    }
+
+    function openTorrentFilePicker() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.torrent';
+      input.onchange = e => {
+        const file = e.target.files[0];
+        if (file) {
+          downloads.unshift({
+            id: state.nextId++,
+            source: 'Torrent',
+            name: file.name.replace(/\.torrent$/i, ''),
+            category: 'Torrents',
+            q: '',
+            size: '1.80 GB',
+            sizeBytes: 1.8 * 1024 * 1024 * 1024,
+            status: 'Downloading',
+            progress: 0.1,
+            timeLeft: '0 hour(s) 19...',
+            rate: '1.500 MB/sec',
+            lastTry: 'Nov 14 2026',
+            added: 'Nov 14 02:53:20 2026'
+          });
+          renderSidebar();
+          renderTable();
+          showToast(`Loaded torrent file "${file.name}"`);
+        }
+      };
+      input.click();
+    }
+
+    function openBatchModal() {
+      openModal(`
+        <div class="p-5">
+          <h3 class="text-sm font-bold text-slate-800 mb-1">Add Batch Download</h3>
+          <p class="text-xs text-slate-500 mb-3">Use wildcards like <code class="bg-slate-100 px-1.5 py-0.5 rounded text-emerald-700">image-[01-10].jpg</code></p>
+          <input type="text" value="https://cdn.example.com/archive/part-[01-05].zip" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 mb-4" />
+          <div class="flex justify-end gap-2">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button onclick="closeModal(); showToast('5 batch items queued')" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700">Generate Batch</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function addFromClipboard() {
+      showToast('Scanned clipboard — 2 valid URLs ready to queue');
+    }
+
+    function openLinkGrabberModal() {
+      openModal(`
+        <div class="p-5">
+          <h3 class="text-sm font-bold text-slate-800 mb-1">Link Grabber</h3>
+          <p class="text-xs text-slate-500 mb-3">Extract all downloadable media & archive links from any webpage.</p>
+          <input type="text" placeholder="https://example.com/downloads" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 mb-4" />
+          <div class="flex justify-end gap-2">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Close</button>
+            <button onclick="closeModal(); showToast('Link Grabber scanning page...')" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700">Scan Links</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function openRssModal() {
+      openModal(`
+        <div class="p-5">
+          <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-9 h-9 rounded-xl bg-orange-500/12 text-orange-600 flex items-center justify-center">${Glyphs.rss}</div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">RSS Feeds</h3>
+              <p class="text-xs text-slate-500">Auto-download releases from subscribed feeds</p>
+            </div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-600 mb-4">
+            No active RSS feeds configured. Add an XML feed URL to start automatic matching.
+          </div>
+          <div class="flex justify-end gap-2">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Close</button>
+            <button onclick="closeModal(); showToast('RSS Feed subscription added')" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600">Add Feed</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function openSpeedLimiterModal() {
+      const currentVal = state.speedLimit || 1024;
+      openModal(`
+        <div class="p-5">
+          <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/12 text-emerald-600 flex items-center justify-center">${Glyphs.gauge}</div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Speed Limiter</h3>
+              <p class="text-xs text-slate-500">Set global maximum download bandwidth (KB/sec)</p>
+            </div>
+          </div>
+          <input id="speed-limit-input" type="number" value="${currentVal}" min="64" step="64" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 mb-4" />
+          <div class="flex justify-between gap-2">
+            <button onclick="applySpeedLimit(null)" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100">Disable Limit</button>
+            <div class="flex gap-2">
+              <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+              <button onclick="applySpeedLimit(parseInt(document.getElementById('speed-limit-input').value, 10))" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700">Apply</button>
+            </div>
+          </div>
+        </div>
+      `);
+    }
+
+    function applySpeedLimit(limitKb) {
+      state.speedLimit = limitKb && limitKb > 0 ? limitKb : null;
+      const badge = document.getElementById('speed-limit-badge');
+      if (state.speedLimit) {
+        badge.textContent = `${state.speedLimit} KB/s`;
+        badge.className = 'px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 font-semibold text-[11px]';
+        showToast(`Speed limiter set to ${state.speedLimit} KB/s`);
+      } else {
+        badge.textContent = 'Off';
+        badge.className = 'px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-semibold text-[11px]';
+        showToast('Speed limiter disabled');
+      }
+      closeModal();
+      updateToolbarAndStatus();
+    }
+
+    function openSchedulerModal() {
+      openModal(`
+        <div class="p-5">
+          <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-9 h-9 rounded-xl bg-fuchsia-500/12 text-fuchsia-600 flex items-center justify-center">${Glyphs.clock}</div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Download Scheduler</h3>
+              <p class="text-xs text-slate-500">Automate start/stop times for Main Download Queue</p>
+            </div>
+          </div>
+          <div class="space-y-3 text-xs text-slate-700 mb-4">
+            <label class="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200/70">
+              <input type="checkbox" checked class="rounded text-emerald-600" />
+              <span>Start queue automatically at <strong>02:00 AM</strong></span>
+            </label>
+            <label class="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200/70">
+              <input type="checkbox" class="rounded text-emerald-600" />
+              <span>Stop queue automatically at <strong>07:30 AM</strong></span>
+            </label>
+          </div>
+          <div class="flex justify-end gap-2">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button onclick="closeModal(); showToast('Scheduler settings saved')" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-fuchsia-600 hover:bg-fuchsia-700">Save Schedule</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function openOptionsModal(tab = 'General') {
+      openModal(`
+        <div class="p-5">
+          <div class="flex items-center gap-2.5 mb-4">
+            <div class="w-9 h-9 rounded-xl bg-violet-500/12 text-violet-600 flex items-center justify-center">${Glyphs.settings}</div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">${tab} Settings</h3>
+              <p class="text-xs text-slate-500">Configure connections, save folders & torrent ports</p>
+            </div>
+          </div>
+          <div class="space-y-3 text-xs">
+            <div>
+              <label class="block font-semibold text-slate-600 mb-1">Default Download Directory</label>
+              <input type="text" value="C:\\Users\\Mister\\Downloads" class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block font-semibold text-slate-600 mb-1">Max Connections</label>
+                <input type="number" value="8" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700" />
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-600 mb-1">Listening Port</label>
+                <input type="number" value="51413" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700" />
+              </div>
+            </div>
+          </div>
+          <div class="mt-5 flex justify-end gap-2">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button onclick="closeModal(); showToast('${tab} options saved')" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700">Save Changes</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function openShortcutsModal() {
+      openModal(`
+        <div class="p-5">
+          <h3 class="text-sm font-bold text-slate-800 mb-3">Keyboard Shortcuts</h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between py-1.5 border-b border-slate-100"><span>Remove selected</span><kbd class="px-2 py-0.5 bg-slate-100 rounded font-semibold">Delete</kbd></div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100"><span>Remove with files</span><kbd class="px-2 py-0.5 bg-slate-100 rounded font-semibold">Shift+Delete</kbd></div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100"><span>Find download</span><kbd class="px-2 py-0.5 bg-slate-100 rounded font-semibold">Ctrl+F</kbd></div>
+            <div class="flex justify-between py-1.5"><span>Select all</span><kbd class="px-2 py-0.5 bg-slate-100 rounded font-semibold">Ctrl+A</kbd></div>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-800">Close</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function openAboutModal() {
+      openModal(`
+        <div class="p-5 text-center">
+          <div class="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md mb-3">
+            ${Glyphs.download}
+          </div>
+          <h3 class="text-base font-bold text-slate-800">Mister Download Manager 0.5.0</h3>
+          <p class="text-xs text-slate-500 mt-1">Modern glyph-based padded rounded desktop interface with multi-segment HTTP & BitTorrent support.</p>
+          <button onclick="closeModal()" class="mt-5 px-5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700">Done</button>
+        </div>
+      `);
+    }
+
+    function exportDownloads() {
+      const text = downloads.map(d => `${d.name} (${d.size}) - ${d.status}`).join('\n');
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Exported download list to clipboard');
+    }
+
+    // =========================================================================
+    // 10. TOAST NOTIFICATIONS & LIVE TRANSFER SIMULATION
+    // =========================================================================
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'menu-popover px-4 py-2 rounded-full bg-slate-800/95 text-white text-xs font-medium shadow-lg border border-slate-700/80 flex items-center gap-2';
+      toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.25s ease';
+        setTimeout(() => toast.remove(), 260);
+      }, 2400);
+    }
+
+    // Live transfer progress tick for active downloads
+    setInterval(() => {
+      let changed = false;
+      downloads.forEach(d => {
+        if (d.status === 'Downloading') {
+          const speedMb = state.speedLimit ? state.speedLimit / 1024 : (1.58 + Math.random() * 0.22);
+          d.rate = `${speedMb.toFixed(3)} MB/sec`;
+          const step = (speedMb * 1024 * 1024 / d.sizeBytes) * 100;
+          d.progress = Math.min(100, d.progress + step);
+          if (d.progress >= 100) {
+            d.progress = 100;
+            d.status = 'Complete';
+            d.rate = '';
+            d.timeLeft = '';
+            showToast(`Download complete: ${d.name}`);
+            renderSidebar();
+          }
+          changed = true;
+        }
+      });
+      if (changed) renderTable();
+    }, 1000);
+
+    // Global keyboard shortcuts (Delete, Shift+Delete, Ctrl+F, Ctrl+A, Escape)
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        closeAllPopups();
+        closeModal();
+      }
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'Delete') {
+        e.preventDefault();
+        removeSelected(e.shiftKey);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        openFindBar();
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        findNextMatch();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        selectAllRows();
+      }
+    });
+
+    // =========================================================================
+    // 11. INITIALIZE UI
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      renderTopMenuBar();
+      renderSidebar();
+      renderTable();
+    });
+  </script>
+</body>
+</html>

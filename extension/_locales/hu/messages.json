@@ -1,12 +1,12 @@
-{
+﻿{
   "name": {
-    "message": "Mister Download Manager"
+    "message": "Luna Download Manager"
   },
   "description": {
-    "message": "Átadja a letöltéseket a böngészőből a(z) Mister Download Manager alkalmazásnak."
+    "message": "Átadja a letöltéseket a böngészőből a(z) Luna Download Manager alkalmazásnak."
   },
   "menu": {
-    "message": "Letöltés a(z) Mister Download Manager alkalmazással"
+    "message": "Letöltés a(z) Luna Download Manager alkalmazással"
   },
   "video_download": {
     "message": "Videó letöltése"
@@ -30,19 +30,19 @@
     "message": "Gombbeállítások..."
   },
   "video_sent": {
-    "message": "Elküldve a következőnek: Mister Download Manager"
+    "message": "Elküldve a következőnek: Luna Download Manager"
   },
   "menu_selected": {
-    "message": "Kijelölt hivatkozások letöltése az Mister Download Manager alkalmazással"
+    "message": "Kijelölt hivatkozások letöltése az Luna Download Manager alkalmazással"
   },
   "menu_all": {
-    "message": "Összes hivatkozás letöltése az Mister Download Manager alkalmazással"
+    "message": "Összes hivatkozás letöltése az Luna Download Manager alkalmazással"
   },
   "status_connected": {
-    "message": "Csatlakoztatva az Mister Download Manager alkalmazáshoz"
+    "message": "Csatlakoztatva az Luna Download Manager alkalmazáshoz"
   },
   "status_connected_version": {
-    "message": "Csatlakoztatva az Mister Download Manager $version$ alkalmazáshoz",
+    "message": "Csatlakoztatva az Luna Download Manager $version$ alkalmazáshoz",
     "placeholders": {
       "version": {
         "content": "$1",
@@ -54,22 +54,22 @@
     "message": "Szüneteltetve: a letöltések a böngészőben maradnak"
   },
   "status_not_installed": {
-    "message": "Az Mister Download Manager nincs telepítve, vagy a böngészőintegrációja nincs beállítva"
+    "message": "Az Luna Download Manager nincs telepítve, vagy a böngészőintegrációja nincs beállítva"
   },
   "status_forbidden": {
-    "message": "Az Mister Download Manager nem fogadja el a bővítmény ezen másolatát"
+    "message": "Az Luna Download Manager nem fogadja el a bővítmény ezen másolatát"
   },
   "status_not_running": {
-    "message": "Az Mister Download Manager nem indult el időben"
+    "message": "Az Luna Download Manager nem indult el időben"
   },
   "status_host_failed": {
-    "message": "Nem sikerült csatlakozni az Mister Download Manager alkalmazáshoz"
+    "message": "Nem sikerült csatlakozni az Luna Download Manager alkalmazáshoz"
   },
   "status_too_large": {
     "message": "A letöltés részletei túl nagyok voltak az átadáshoz"
   },
   "status_update_app": {
-    "message": "Frissítse a(z) Mister Download Manager alkalmazást, hogy használhassa a bővítmény összes funkcióját"
+    "message": "Frissítse a(z) Luna Download Manager alkalmazást, hogy használhassa a bővítmény összes funkcióját"
   },
   "popup_take": {
     "message": "Letöltések átvétele ebből a böngészőből"
@@ -78,10 +78,10 @@
     "message": "Letöltések küldése a böngésző proxy- vagy VPN-bővítményén keresztül"
   },
   "popup_proxy_title": {
-    "message": "Az Mister Download Manager ezután ugyanazon a proxyn keresztül tölt le, mint ez a böngésző. A böngésző egyszer engedélyt kér erre; ennek kikapcsolásával visszavonhatja az engedélyt."
+    "message": "Az Luna Download Manager ezután ugyanazon a proxyn keresztül tölt le, mint ez a böngésző. A böngésző egyszer engedélyt kér erre; ennek kikapcsolásával visszavonhatja az engedélyt."
   },
   "popup_proxy_title_chromium": {
-    "message": "Ekkor a(z) Mister Download Manager ugyanazon a proxyn keresztül tölt le, mint ez a böngésző. Ha ez ki van kapcsolva, a bővítmény nem olvassa be a böngésző proxyját."
+    "message": "Ekkor a(z) Luna Download Manager ugyanazon a proxyn keresztül tölt le, mint ez a böngésző. Ha ez ki van kapcsolva, a bővítmény nem olvassa be a böngésző proxyját."
   },
   "popup_exclude_site": {
     "message": "Soha ne töltsön le fájlokat a(z) $site$ webhelyről",
@@ -102,7 +102,7 @@
     }
   },
   "popup_open": {
-    "message": "Megnyitás: Mister Download Manager"
+    "message": "Megnyitás: Luna Download Manager"
   },
   "popup_options": {
     "message": "Beállítások..."
@@ -189,16 +189,16 @@
     "message": "Itt nincs letölthető videó"
   },
   "video_playlist": {
-    "message": "Videók listája: válassza ki őket a Mister Download Manager alkalmazásban"
+    "message": "Videók listája: válassza ki őket a Luna Download Manager alkalmazásban"
   },
   "video_no_ytdlp": {
-    "message": "A Mister Download Manager alkalmazásnak szüksége van a yt-dlp eszközre ehhez a videóhoz"
+    "message": "A Luna Download Manager alkalmazásnak szüksége van a yt-dlp eszközre ehhez a videóhoz"
   },
   "video_too_long": {
     "message": "A keresés túl sokáig tartott"
   },
   "video_busy": {
-    "message": "A Mister Download Manager alkalmazás más videókkal van elfoglalva"
+    "message": "A Luna Download Manager alkalmazás más videókkal van elfoglalva"
   },
   "video_queued": {
     "message": "Hozzáadva a sorhoz"
@@ -222,7 +222,7 @@
     "message": "Ez a számítógép"
   },
   "popup_send_remote": {
-    "message": "Másik Mister Download Manager (kiszolgáló)"
+    "message": "Másik Luna Download Manager (kiszolgáló)"
   },
   "popup_remote_code": {
     "message": "Párosítási kód"
@@ -318,7 +318,7 @@
     "message": "Minden minőség és felirat..."
   },
   "video_failed": {
-    "message": "Az Mister Download Manager nincs telepítve, vagy nem indult el"
+    "message": "Az Luna Download Manager nincs telepítve, vagy nem indult el"
   },
   "video_download_best": {
     "message": "Legjobb letöltése"

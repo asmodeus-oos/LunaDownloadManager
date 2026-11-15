@@ -1,7 +1,7 @@
 //! File → Add batch download (notes/ui-spec/scheduler-and-misc.md §3): an address with an
 //! asterisk, replaced by numbers or letters over a range, previewed before it is added.
 
-use egui::{Pos2, Ui, vec2};
+use egui::{Color32, Pos2, Rect, Stroke, Ui, pos2, vec2};
 
 use crate::dialogs::{Outcome, window};
 use crate::winui::{self, ButtonKind, LIGHT_BG, LIGHT_TEXT, r, text};
@@ -153,11 +153,13 @@ impl Batch {
             Some(Err(e)) => (&[], Some(*e)),
             None => (&[], None),
         };
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [520.0, 440.0] } else { [474.0, 387.0] };
         let outcome = window(
             ctx,
             "batch",
             "Batch download",
-            [474.0, 387.0],
+            dlg_size,
             false,
             LIGHT_BG(),
             |ui, o| self.body(ui, o, urls, why),
@@ -185,6 +187,17 @@ impl Batch {
         why: Option<&'static str>,
     ) -> Outcome<()> {
         let p = ui.painter().clone();
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let text_color = if is_modern { winui::TEXT() } else { LIGHT_TEXT() };
+        if is_modern {
+            let dark = crate::theme::dark();
+            let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+            let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+            let card_rect = Rect::from_min_max(pos2(o.x + 8.0, o.y + 6.0), pos2(o.x + 512.0, o.y + 434.0));
+            p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+            p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+        }
+
         let lines = winui::paragraph(
             &p,
             o.x + 11.0,
@@ -192,7 +205,7 @@ impl Batch {
             crate::i18n::t(
                 "It's possible to add a group of sequential file names like img001.jpg, img002.jpg, etc.,\nimg100.jpg to MDM download queue. Use the asterisk wildcard for the file name pattern.",
             ),
-            LIGHT_TEXT(),
+            text_color,
             o.x + 470.0,
             13.0,
         );
@@ -208,7 +221,7 @@ impl Batch {
                     &crate::i18n::ltr("http://www.example.com/pictures/img*.jpg"),
                 )],
             ),
-            LIGHT_TEXT(),
+            text_color,
         );
         // i18n: noun: the web address (URL) pattern
         text(
@@ -216,7 +229,7 @@ impl Batch {
             o.x + 11.0,
             o.y + 86.0,
             crate::i18n::t("Address"),
-            LIGHT_TEXT(),
+            text_color,
         );
         let edit = winui::edit_light(
             ui,
@@ -382,26 +395,53 @@ impl Batch {
         }
 
         let valid = !urls.is_empty();
-        let ok = winui::button_light(
-            ui,
-            r(o, 274.0, 354.0, 73.0, 21.0),
-            "OK",
-            if valid {
-                ButtonKind::Default
-            } else {
-                ButtonKind::Disabled
-            },
-            false,
-        );
-        let ok = winui::why_disabled(ok, !valid, why.unwrap_or("")).clicked();
-        let cancel = winui::button_light(
-            ui,
-            r(o, 372.0, 354.0, 73.0, 21.0),
-            "Cancel",
-            ButtonKind::Normal,
-            false,
-        )
-        .clicked();
+        let (ok, cancel) = if is_modern {
+            let ok = winui::button(
+                ui,
+                r(o, 296.0, 386.0, 96.0, 36.0),
+                "OK",
+                if valid {
+                    ButtonKind::Default
+                } else {
+                    ButtonKind::Disabled
+                },
+                false,
+                None,
+            );
+            let ok = winui::why_disabled(ok, !valid, why.unwrap_or("")).clicked();
+            let cancel = winui::button(
+                ui,
+                r(o, 404.0, 386.0, 96.0, 36.0),
+                "Cancel",
+                ButtonKind::Normal,
+                false,
+                None,
+            )
+            .clicked();
+            (ok, cancel)
+        } else {
+            let ok = winui::button_light(
+                ui,
+                r(o, 274.0, 354.0, 73.0, 21.0),
+                "OK",
+                if valid {
+                    ButtonKind::Default
+                } else {
+                    ButtonKind::Disabled
+                },
+                false,
+            );
+            let ok = winui::why_disabled(ok, !valid, why.unwrap_or("")).clicked();
+            let cancel = winui::button_light(
+                ui,
+                r(o, 372.0, 354.0, 73.0, 21.0),
+                "Cancel",
+                ButtonKind::Normal,
+                false,
+            )
+            .clicked();
+            (ok, cancel)
+        };
         if cancel || winui::escape_pressed(ui) {
             Outcome::Closed
         } else if valid && (ok || winui::enter_pressed(ui)) {

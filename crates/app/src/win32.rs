@@ -2510,6 +2510,7 @@ pub fn popup_window(title: &str, kind: Popup) -> bool {
         );
         // Windows 11 rounds a window with a caption style by itself, not a popup: asked for.
         let corner = match kind {
+            Popup::Menu { .. } if crate::theme::metrics().button_radius > 4.0 => DWMWCP_ROUND,
             Popup::Menu { .. } => DWMWCP_ROUNDSMALL,
             Popup::Floating => DWMWCP_ROUND,
         };
@@ -4476,7 +4477,7 @@ mod startup_tests {
     use super::{startup_command, startup_outdated};
     use std::path::Path;
 
-    const EXE: &str = r"C:\Program Files\Mister Download Manager\misterdownloadmanager.exe";
+    const EXE: &str = r"C:\Program Files\Luna Download Manager\lunadownloadmanager.exe";
 
     /// The entry Options and the installer write (#226): the program, quoted, then `/startup`.
     #[test]
@@ -5727,8 +5728,8 @@ pub fn host_registration() -> crate::extension::Registration {
     use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
     let mut broken = None;
     for key in [
-        r"Software\Google\Chrome\NativeMessagingHosts\com.misterdownloadmanager.host",
-        r"Software\Mozilla\NativeMessagingHosts\com.misterdownloadmanager.host",
+        r"Software\Google\Chrome\NativeMessagingHosts\com.lunadownloadmanager.host",
+        r"Software\Mozilla\NativeMessagingHosts\com.lunadownloadmanager.host",
     ] {
         for root in [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE] {
             let Some(manifest) = reg_string_in(root, key, "") else {

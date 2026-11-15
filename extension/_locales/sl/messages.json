@@ -1,12 +1,12 @@
-{
+﻿{
   "name": {
-    "message": "Mister Download Manager"
+    "message": "Luna Download Manager"
   },
   "description": {
-    "message": "Prenose iz brskalnika preda programu Mister Download Manager."
+    "message": "Prenose iz brskalnika preda programu Luna Download Manager."
   },
   "menu": {
-    "message": "Prenesi z Mister Download Manager"
+    "message": "Prenesi z Luna Download Manager"
   },
   "video_download": {
     "message": "Prenesi video"
@@ -30,19 +30,19 @@
     "message": "Nastavitve gumba..."
   },
   "video_sent": {
-    "message": "Poslano v Mister Download Manager"
+    "message": "Poslano v Luna Download Manager"
   },
   "menu_selected": {
-    "message": "Prenesi izbrane povezave z Mister Download Manager"
+    "message": "Prenesi izbrane povezave z Luna Download Manager"
   },
   "menu_all": {
-    "message": "Prenesi vse povezave z Mister Download Manager"
+    "message": "Prenesi vse povezave z Luna Download Manager"
   },
   "status_connected": {
-    "message": "Povezano z Mister Download Manager"
+    "message": "Povezano z Luna Download Manager"
   },
   "status_connected_version": {
-    "message": "Povezano z Mister Download Manager $version$",
+    "message": "Povezano z Luna Download Manager $version$",
     "placeholders": {
       "version": {
         "content": "$1",
@@ -54,22 +54,22 @@
     "message": "Začasno ustavljeno: prenosi ostanejo v brskalniku"
   },
   "status_not_installed": {
-    "message": "Mister Download Manager ni nameščen ali njegova integracija brskalnika ni nastavljena"
+    "message": "Luna Download Manager ni nameščen ali njegova integracija brskalnika ni nastavljena"
   },
   "status_forbidden": {
-    "message": "Mister Download Manager ne sprejema te kopije razširitve"
+    "message": "Luna Download Manager ne sprejema te kopije razširitve"
   },
   "status_not_running": {
-    "message": "Mister Download Manager se ni zagnal pravočasno"
+    "message": "Luna Download Manager se ni zagnal pravočasno"
   },
   "status_host_failed": {
-    "message": "Povezava z Mister Download Manager ni uspela"
+    "message": "Povezava z Luna Download Manager ni uspela"
   },
   "status_too_large": {
     "message": "Podrobnosti tega prenosa so bile prevelike za predajo"
   },
   "status_update_app": {
-    "message": "Posodobite Mister Download Manager, da boste lahko uporabljali vse, kar ponuja ta razširitev"
+    "message": "Posodobite Luna Download Manager, da boste lahko uporabljali vse, kar ponuja ta razširitev"
   },
   "popup_take": {
     "message": "Prevzemi prenose iz tega brskalnika"
@@ -78,10 +78,10 @@
     "message": "Pošlji prenose prek posrednika ali razširitve VPN tega brskalnika"
   },
   "popup_proxy_title": {
-    "message": "Mister Download Manager nato prenaša prek istega posrednika kot ta brskalnik. Brskalnik vas enkrat vpraša, ali to dovolite; če to izklopite, se dovoljenje prekliče."
+    "message": "Luna Download Manager nato prenaša prek istega posrednika kot ta brskalnik. Brskalnik vas enkrat vpraša, ali to dovolite; če to izklopite, se dovoljenje prekliče."
   },
   "popup_proxy_title_chromium": {
-    "message": "Mister Download Manager nato prenaša prek istega posrednika kot ta brskalnik. Ko je to izklopljeno, razširitev ne bere brskalnikovega posrednika."
+    "message": "Luna Download Manager nato prenaša prek istega posrednika kot ta brskalnik. Ko je to izklopljeno, razširitev ne bere brskalnikovega posrednika."
   },
   "popup_exclude_site": {
     "message": "Nikoli ne prevzemi prenosov s spletnega mesta $site$",
@@ -102,7 +102,7 @@
     }
   },
   "popup_open": {
-    "message": "Odpri Mister Download Manager"
+    "message": "Odpri Luna Download Manager"
   },
   "popup_options": {
     "message": "Možnosti..."
@@ -189,16 +189,16 @@
     "message": "Tu ni videa za prenos"
   },
   "video_playlist": {
-    "message": "Seznam videoposnetkov: izberite jih v programu Mister Download Manager"
+    "message": "Seznam videoposnetkov: izberite jih v programu Luna Download Manager"
   },
   "video_no_ytdlp": {
-    "message": "Mister Download Manager potrebuje yt-dlp za ta videoposnetek"
+    "message": "Luna Download Manager potrebuje yt-dlp za ta videoposnetek"
   },
   "video_too_long": {
     "message": "Iskanje je trajalo predolgo"
   },
   "video_busy": {
-    "message": "Mister Download Manager je zaseden z drugimi videoposnetki"
+    "message": "Luna Download Manager je zaseden z drugimi videoposnetki"
   },
   "video_queued": {
     "message": "Dodano v čakalno vrsto"
@@ -222,7 +222,7 @@
     "message": "Ta računalnik"
   },
   "popup_send_remote": {
-    "message": "Drugi Mister Download Manager (strežnik)"
+    "message": "Drugi Luna Download Manager (strežnik)"
   },
   "popup_remote_code": {
     "message": "Koda za seznanjanje"
@@ -318,7 +318,7 @@
     "message": "Vse kakovosti in podnapisi..."
   },
   "video_failed": {
-    "message": "Mister Download Manager ni nameščen ali se ni zagnal"
+    "message": "Luna Download Manager ni nameščen ali se ni zagnal"
   },
   "video_download_best": {
     "message": "Prenesi najboljšo kakovost"

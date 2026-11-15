@@ -46,17 +46,17 @@ impl Icon {
     /// SVG body (24 × 24 user space, Lucide path data).
     fn body(self) -> &'static str {
         match self {
-            // An outlined plus, like IDM's Add URL.
-            Icon::AddUrl => r#"<path d="M9.5 2.5h5v7h7v5h-7v7h-5v-7h-7v-5h7z"/>"#,
+            // Modern clean plus for Add URL (mister_download_manager_0_5_0.html).
+            Icon::AddUrl => r#"<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>"#,
             Icon::AddTorrent => concat!(
                 r#"<path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/>"#,
                 r#"<path d="m5 8 4 4"/><path d="m12 15 4 4"/>"#,
             ),
             Icon::Resume => {
-                r#"<circle cx="12" cy="12" r="10"/><path d="M12 7v10"/><path d="m8 13 4 4 4-4"/>"#
+                r#"<circle cx="12" cy="12" r="9"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>"#
             }
             Icon::Stop => {
-                r#"<circle cx="12" cy="12" r="10"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.5"/>"#
+                r#"<circle cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" stroke="none"/>"#
             }
             Icon::StopAll => concat!(
                 r#"<path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/>"#,
@@ -65,32 +65,36 @@ impl Icon {
                 r#"<path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>"#,
             ),
             Icon::Delete => concat!(
-                r#"<path d="M10 11v6"/><path d="M14 11v6"/>"#,
-                r#"<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>"#,
-                r#"<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>"#,
+                r#"<polyline points="3 6 5 6 21 6"/>"#,
+                r#"<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>"#,
+                r#"<line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>"#,
             ),
             Icon::DeleteCompleted => concat!(
-                r#"<path d="m9 14 2 2 4-4.5"/>"#,
-                r#"<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>"#,
-                r#"<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>"#,
+                r#"<path d="M3 6h18"/>"#,
+                r#"<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>"#,
+                r#"<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>"#,
+                r#"<path d="m9 14 2 2 4-4"/>"#,
             ),
             Icon::Options => concat!(
-                r#"<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/>"#,
                 r#"<circle cx="12" cy="12" r="3"/>"#,
+                r#"<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>"#,
             ),
             Icon::Scheduler => concat!(
-                r#"<circle cx="12" cy="13" r="8"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/>"#,
-                r#"<path d="M6.38 18.7 4 21"/><path d="M17.64 18.67 20 21"/><path d="m9 13 2 2 4-4"/>"#,
+                r#"<circle cx="12" cy="13" r="8"/>"#,
+                r#"<path d="M12 9v4l2 2"/>"#,
+                r#"<path d="M5 3 2 6"/>"#,
+                r#"<path d="m22 6-3-3"/>"#,
             ),
             Icon::StartQueue => concat!(
-                r#"<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>"#,
-                r#"<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>"#,
-                r#"<path d="M15 11v7"/><path d="m12 15.5 3 3 3-3"/>"#,
+                r#"<rect x="3" y="3" width="14" height="14" rx="2"/>"#,
+                r#"<path d="M10 7v6"/>"#,
+                r#"<path d="m7 10 3 3 3-3"/>"#,
+                r#"<path d="M21 8v11a2 2 0 0 1-2 2H8"/>"#,
             ),
             Icon::StopQueue => concat!(
-                r#"<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>"#,
-                r#"<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>"#,
-                r#"<rect width="6" height="6" x="12" y="12" rx="1"/>"#,
+                r#"<rect x="3" y="3" width="14" height="14" rx="2"/>"#,
+                r#"<rect x="8" y="8" width="4" height="4" rx="0.5" fill="currentColor" stroke="none"/>"#,
+                r#"<path d="M21 8v11a2 2 0 0 1-2 2H8"/>"#,
             ),
             // Lucide "move": four arrows.
             Icon::DragOut => concat!(
@@ -228,11 +232,47 @@ impl Icon {
 
     /// The ink's two stops, top-left to bottom-right: enabled, its gradient, one colour or
     /// the accent as the theme's icon style says; disabled, the theme's flat grey (as IDM).
+    /// Official Microsoft Fluent UI System Icon paths (24 Regular).
+    fn fluent_body(self) -> &'static str {
+        match self {
+            Icon::AddUrl => r#"<path d="M11.25 5a.75.75 0 0 1 .75.75v5.5h5.5a.75.75 0 0 1 0 1.5H12v5.5a.75.75 0 0 1-1.5 0V12.75H5a.75.75 0 0 1 0-1.5h5.5V5.75c0-.41.34-.75.75-.75Z" fill="currentColor"/>"#,
+            Icon::AddTorrent => concat!(
+                r#"<path d="M6 4.75a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75h-1.5A.75.75 0 0 1 6 9.25V4.75Zm9 0a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1-.75-.75V4.75ZM4.5 12a7.5 7.5 0 0 0 15 0v-1.25a.75.75 0 0 0-1.5 0V12a6 6 0 1 1-12 0v-1.25a.75.75 0 0 0-1.5 0V12Z" fill="currentColor"/>"#,
+            ),
+            Icon::Resume => r#"<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM3.5 12a8.5 8.5 0 1 1 17 0 8.5 8.5 0 0 1-17 0Zm6.25-3.92a.75.75 0 0 0-1.15.64v6.56a.75.75 0 0 0 1.15.64l5.47-3.28a.75.75 0 0 0 0-1.28L9.75 8.08Z" fill="currentColor"/>"#,
+            Icon::Stop => r#"<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM3.5 12a8.5 8.5 0 1 1 17 0 8.5 8.5 0 0 1-17 0ZM9 8.75c0-.41.34-.75.75-.75h4.5c.41 0 .75.34.75.75v4.5a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75v-4.5Z" fill="currentColor"/>"#,
+            Icon::StopAll => r#"<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM3.5 12a8.5 8.5 0 1 1 17 0 8.5 8.5 0 0 1-17 0ZM8.75 8a.75.75 0 0 0-.75.75v6.5c0 .41.34.75.75.75h1.5a.75.75 0 0 0 .75-.75v-6.5a.75.75 0 0 0-.75-.75h-1.5Zm4.5 0a.75.75 0 0 0-.75.75v6.5c0 .41.34.75.75.75h1.5a.75.75 0 0 0 .75-.75v-6.5a.75.75 0 0 0-.75-.75h-1.5Z" fill="currentColor"/>"#,
+            Icon::Delete => concat!(
+                r#"<path d="M10 2.5a.75.75 0 0 0-.75.75V4H5.25a.75.75 0 0 0 0 1.5h.8l.9 12.63A2.75 2.75 0 0 0 9.69 20.75h4.62a2.75 2.75 0 0 0 2.74-2.62l.9-12.63h.8a.75.75 0 0 0 0-1.5h-4V3.25A.75.75 0 0 0 14 2.5h-4ZM13.25 4h-2.5V3.75h2.5V4Zm-4.8 2.5h7.1l-.88 12.4a1.25 1.25 0 0 1-1.25 1.1H9.69a1.25 1.25 0 0 1-1.25-1.1L7.56 6.5Zm2.69 3.5a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0v-5.5a.75.75 0 0 1 .75-.75Zm3 0a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0v-5.5a.75.75 0 0 1 .75-.75Z" fill="currentColor"/>"#,
+            ),
+            Icon::DeleteCompleted => concat!(
+                r#"<path d="M10 2.5a.75.75 0 0 0-.75.75V4H5.25a.75.75 0 0 0 0 1.5h.8l.9 12.63A2.75 2.75 0 0 0 9.69 20.75h4.62a2.75 2.75 0 0 0 2.74-2.62l.33-4.63a.75.75 0 0 0-1.5-.1l-.32 4.62a1.25 1.25 0 0 1-1.25 1.23H9.69a1.25 1.25 0 0 1-1.25-1.23L7.56 6.5h7.94a.75.75 0 0 0 0-1.5h-1.25V3.25A.75.75 0 0 0 13.5 2.5h-3.5ZM17.15 9.15a.75.75 0 0 1 1.06 0l1.77 1.77 1.77-1.77a.75.75 0 1 1 1.06 1.06l-1.77 1.77 1.77 1.77a.75.75 0 0 1-1.06 1.06L20 13.06l-1.77 1.77a.75.75 0 0 1-1.06-1.06l1.77-1.77-1.77-1.77a.75.75 0 0 1 0-1.06Z" fill="currentColor"/>"#,
+            ),
+            Icon::Options => concat!(
+                r#"<path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0-1.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM10.05 3a1.75 1.75 0 0 0-1.72 1.44l-.22 1.23a6.83 6.83 0 0 0-1.07.62l-1.12-.56a1.75 1.75 0 0 0-2.22.56l-1.4 2.42a1.75 1.75 0 0 0 .42 2.26l.98.78a6.97 6.97 0 0 0 0 1.24l-.98.78a1.75 1.75 0 0 0-.42 2.26l1.4 2.42c.48.83 1.52 1.15 2.22.56l1.12-.56c.33.24.69.45 1.07.62l.22 1.23A1.75 1.75 0 0 0 10.05 21h3.9a1.75 1.75 0 0 0 1.72-1.44l.22-1.23c.38-.17.74-.38 1.07-.62l1.12.56c.7.35 1.74.27 2.22-.56l1.4-2.42a1.75 1.75 0 0 0-.42-2.26l-.98-.78a6.97 6.97 0 0 0 0-1.24l.98-.78a1.75 1.75 0 0 0 .42-2.26l-1.4-2.42a1.75 1.75 0 0 0-2.22-.56l-1.12.56a6.83 6.83 0 0 0-1.07-.62l-.22-1.23A1.75 1.75 0 0 0 13.95 3h-3.9Zm-.25 1.72c.07-.4.41-.72.82-.72h3.9c.41 0 .75.31.82.72l.24 1.37a.75.75 0 0 0 .54.58c.47.16.91.39 1.31.68a.75.75 0 0 0 .78.07l1.24-.62a.25.25 0 0 1 .32.08l1.4 2.42a.25.25 0 0 1-.06.32l-1.1.88a.75.75 0 0 0-.25.75c.05.5.05 1 0 1.5a.75.75 0 0 0 .25.75l1.1.88a.25.25 0 0 1 .06.32l-1.4 2.42a.25.25 0 0 1-.32.08l-1.24-.62a.75.75 0 0 0-.78.07 5.46 5.46 0 0 1-1.31.68.75.75 0 0 0-.54.58l-.24 1.37a.83.83 0 0 1-.82.72h-3.9a.83.83 0 0 1-.82-.72l-.24-1.37a.75.75 0 0 0-.54-.58 5.46 5.46 0 0 1-1.31-.68.75.75 0 0 0-.78-.07l-1.24.62a.25.25 0 0 1-.32-.08l-1.4-2.42a.25.25 0 0 1 .06-.32l1.1-.88a.75.75 0 0 0 .25-.75 5.6 5.6 0 0 1 0-1.5.75.75 0 0 0-.25-.75l-1.1-.88a.25.25 0 0 1-.06-.32l1.4-2.42a.25.25 0 0 1 .32-.08l1.24.62a.75.75 0 0 0 .78-.07c.4-.29.84-.52 1.31-.68a.75.75 0 0 0 .54-.58l.24-1.37Z" fill="currentColor"/>"#,
+            ),
+            Icon::Scheduler => r#"<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM3.5 12a8.5 8.5 0 1 1 17 0 8.5 8.5 0 0 1-17 0Zm8.5-5.25a.75.75 0 0 0-.75.75v5c0 .41.34.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V7.5a.75.75 0 0 0-.75-.75Z" fill="currentColor"/>"#,
+            Icon::StartQueue => r#"<path d="M11.25 3.75a.75.75 0 0 1 1.5 0v10.69l3.72-3.72a.75.75 0 1 1 1.06 1.06l-5 5a.75.75 0 0 1-1.06 0l-5-5a.75.75 0 1 1 1.06-1.06l3.72 3.72V3.75Zm-6.5 14.5a.75.75 0 0 0 0 1.5h14.5a.75.75 0 0 0 0-1.5H4.75Z" fill="currentColor"/>"#,
+            Icon::StopQueue => r#"<path d="M6.5 5.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.25a.75.75 0 0 1-.75-.75V5.25Zm7 0a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H14.25a.75.75 0 0 1-.75-.75V5.25Z" fill="currentColor"/>"#,
+            _ => self.body(),
+        }
+    }
+
+    /// Stops (colour A, colour B) for linear gradient (classic mode) or monochromatic ink.
     fn stops(self, enabled: bool) -> (String, String) {
         use crate::palette::{IconStyle, to_hex};
         let c = crate::theme::colors();
+        let is_modern = crate::theme::metrics().button_radius > 4.0;
         if !enabled {
+            if is_modern {
+                let dis = if crate::theme::dark() { "#64748b" } else { "#94a3b8" };
+                return (dis.to_owned(), dis.to_owned());
+            }
             return (to_hex(c.icon_disabled), to_hex(c.icon_disabled_end));
+        }
+        if is_modern {
+            let ink = if crate::theme::dark() { "#f1f5f9" } else { "#1e293b" };
+            return (ink.to_owned(), ink.to_owned());
         }
         match crate::theme::current().icons {
             IconStyle::Color => {
@@ -246,10 +286,18 @@ impl Icon {
 
     /// The SVG for this icon, inked from `a` to `b`.
     fn svg(self, a: &str, b: &str) -> String {
-        format!(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="url(#g)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="22" y2="22"><stop offset="0" stop-color="{a}"/><stop offset="1" stop-color="{b}"/></linearGradient></defs>{}</svg>"#,
-            self.body()
-        )
+        let is_modern = crate::theme::metrics().button_radius > 4.0;
+        if is_modern {
+            format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" color="{a}" fill="none">{}</svg>"#,
+                self.fluent_body()
+            )
+        } else {
+            format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="url(#g)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="22" y2="22"><stop offset="0" stop-color="{a}"/><stop offset="1" stop-color="{b}"/></linearGradient></defs>{}</svg>"#,
+                self.body()
+            )
+        }
     }
 
     /// The theme icon set's name for this icon (`crate::themeicons`), for the ones a set can

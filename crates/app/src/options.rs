@@ -317,7 +317,7 @@ impl OptionsDialog {
         let outcome = window(
             ctx,
             "options",
-            "Mister Download Manager Configuration",
+            "Luna Download Manager Configuration",
             [430.0, 506.0],
             false,
             LIGHT_BG(),
@@ -450,7 +450,7 @@ impl OptionsDialog {
             (
                 94.0,
                 &mut s.launch_on_startup,
-                crate::i18n::mark("Launch Mister Download Manager on startup"),
+                crate::i18n::mark("Launch Luna Download Manager on startup"),
             ),
             (
                 113.0,

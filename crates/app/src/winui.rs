@@ -52,26 +52,110 @@ pub fn tahoma_title() -> FontId {
     )
 }
 
-/// Tahoma (IDM's dialogs), Tahoma Bold and Arial Bold from Windows' fonts folder. A family
-/// whose file isn't there (macOS, Linux) is the interface font's, so drawing with it never fails.
+fn find_font_bytes(dir: Option<&std::path::Path>, files: &[&str]) -> Option<Vec<u8>> {
+    if let Some(d) = dir {
+        for f in files {
+            if let Ok(bytes) = std::fs::read(d.join(f)) {
+                return Some(bytes);
+            }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        for base in [
+            "/System/Library/Fonts",
+            "/System/Library/Fonts/Supplemental",
+            "/Library/Fonts",
+        ] {
+            let p = std::path::Path::new(base);
+            for f in files {
+                if let Ok(bytes) = std::fs::read(p.join(f)) {
+                    return Some(bytes);
+                }
+            }
+        }
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        for base in [
+            "/usr/share/fonts",
+            "/usr/local/share/fonts",
+            "/usr/share/fonts/truetype",
+            "/usr/share/fonts/truetype/msttcorefonts",
+            "/usr/share/fonts/TTF",
+            "/usr/share/wine/fonts",
+        ] {
+            let p = std::path::Path::new(base);
+            for f in files {
+                if let Ok(bytes) = std::fs::read(p.join(f)) {
+                    return Some(bytes);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Tahoma (IDM's dialogs), Segoe UI (Modern UI), Tahoma Bold and Arial Bold.
+/// Resolves font files across Windows, macOS, and Linux font locations.
+/// On non-Windows without Segoe UI, modern fonts map to the platform's native sans-serif font ("segoe-ui").
 pub fn install_fonts(defs: &mut egui::FontDefinitions, font_dir: Option<&std::path::Path>) {
     let ui = defs
         .families
         .get(&FontFamily::Proportional)
         .cloned()
         .unwrap_or_default();
-    for (family, file) in [
-        ("tahoma", "tahoma.ttf"),
-        ("tahoma-bold", "tahomabd.ttf"),
-        ("arial-bold", "arialbd.ttf"),
+    for (family, files) in [
+        ("tahoma", &["tahoma.ttf", "Tahoma.ttf"][..]),
+        (
+            "tahoma-bold",
+            &["tahomabd.ttf", "Tahoma-Bold.ttf", "Tahoma Bold.ttf"][..],
+        ),
+        (
+            "arial-bold",
+            &["arialbd.ttf", "Arial-Bold.ttf", "Arial Bold.ttf"][..],
+        ),
+        (
+            "segoe",
+            &[
+                "segoeui.ttf",
+                "SegoeUI.ttf",
+                "Segoe UI.ttf",
+                "segoe.ttf",
+                "Inter-Regular.otf",
+                "Inter-Regular.ttf",
+                "Inter.ttf",
+                "Inter.otf",
+                "Cantarell-Regular.otf",
+                "Roboto-Regular.ttf",
+                "Ubuntu-R.ttf",
+            ][..],
+        ),
+        (
+            "segoe-bold",
+            &[
+                "segoeuib.ttf",
+                "SegoeUI-Bold.ttf",
+                "Segoe UI Bold.ttf",
+                "segoeb.ttf",
+                "Inter-Bold.otf",
+                "Inter-Bold.ttf",
+                "Cantarell-Bold.otf",
+                "Roboto-Bold.ttf",
+                "Ubuntu-B.ttf",
+            ][..],
+        ),
     ] {
-        let fonts = match font_dir.and_then(|d| std::fs::read(d.join(file)).ok()) {
+        let fonts = match find_font_bytes(font_dir, files) {
             Some(bytes) => {
                 defs.font_data.insert(
                     family.into(),
                     std::sync::Arc::new(egui::FontData::from_owned(bytes)),
                 );
                 vec![family.to_owned()]
+            }
+            None if defs.font_data.contains_key("segoe-ui") && family.starts_with("segoe") => {
+                vec!["segoe-ui".to_owned()]
             }
             _ => ui.clone(),
         };
@@ -1889,8 +1973,37 @@ pub enum FieldLook {
 /// the box's inside too, so every kind of text box agrees (they had three insides between them,
 /// and dark mode drew IDM's bright 2 px border round every box, disabled ones included).
 pub fn field_frame(p: &Painter, rc: Rect, look: FieldLook) {
-    let radius = control_radius();
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    let radius = if is_modern { 8.0 } else { control_radius() };
     let c = crate::theme::colors();
+    if is_modern {
+        let (inside, border) = match look {
+            FieldLook::Editable => {
+                if crate::theme::dark() {
+                    (Color32::from_rgb(30, 41, 59), Color32::from_rgb(51, 65, 85))
+                } else {
+                    (Color32::WHITE, Color32::from_rgb(203, 213, 225))
+                }
+            }
+            FieldLook::Disabled => {
+                if crate::theme::dark() {
+                    (Color32::from_rgb(15, 23, 42), Color32::from_rgb(30, 41, 59))
+                } else {
+                    (Color32::from_rgb(241, 245, 249), Color32::from_rgb(226, 232, 240))
+                }
+            }
+            FieldLook::ReadOnly => {
+                if crate::theme::dark() {
+                    (Color32::from_rgb(20, 29, 44), Color32::from_rgb(51, 65, 85))
+                } else {
+                    (Color32::from_rgb(248, 250, 252), Color32::from_rgb(203, 213, 225))
+                }
+            }
+        };
+        p.rect_filled(rc, radius, inside);
+        p.rect_stroke(rc, radius, Stroke::new(1.0, border), StrokeKind::Inside);
+        return;
+    }
     // Disabled and read-only boxes are flat: their bottom line is their border.
     let (inside, border, bottom) = match look {
         FieldLook::Editable => (c.field, c.field_border, c.field_bottom),
@@ -2090,6 +2203,12 @@ pub fn edit_focus_line(ui: &Ui, resp: &Response, rc: Rect) {
 /// The 2 px accent along a focused box's bottom edge. Light: the bottom of its rounded
 /// frame, curving into the corners as Windows 11 draws it; dark: IDM's straight line.
 pub fn focus_bottom(p: &Painter, rc: Rect) {
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    if is_modern {
+        let emerald = Color32::from_rgb(16, 185, 129);
+        p.rect_stroke(rc, 8.0, Stroke::new(2.0, emerald), StrokeKind::Inside);
+        return;
+    }
     let h = crate::theme::metrics().focus_line;
     // GNOME: a ring inside the box, the accent half seen through.
     if crate::theme::current().controls.field_focus == crate::palette::FieldFocus::Ring {
@@ -2694,14 +2813,16 @@ pub fn tint_part(p: &Painter, zone: Rect, tint: Option<Color32>, glyph: impl FnO
 
 /// An editable or drop-list combo's arrow zone (inside its border, at the trailing edge).
 fn combo_zone(rc: Rect) -> Rect {
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    let w = if is_modern { 28.0 } else { 20.0 };
     if rtl() {
         Rect::from_min_max(
             rc.min + vec2(1.0, 1.0),
-            pos2(rc.left() + 20.0, rc.bottom() - 1.0),
+            pos2(rc.left() + w, rc.bottom() - 1.0),
         )
     } else {
         Rect::from_min_max(
-            pos2(rc.right() - 20.0, rc.top() + 1.0),
+            pos2(rc.right() - w, rc.top() + 1.0),
             rc.max - vec2(1.0, 1.0),
         )
     }
@@ -2709,12 +2830,32 @@ fn combo_zone(rc: Rect) -> Rect {
 
 /// A combo's chevron: 8 × 6 "v" at the arrow zone's left + 6, top + 8.
 fn combo_chevron(p: &Painter, rc: Rect) {
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    if is_modern {
+        let zone = combo_zone(rc);
+        let btn_sz = (rc.height() - 8.0).clamp(18.0, 24.0);
+        let btn_rect = Rect::from_center_size(zone.center(), vec2(btn_sz, btn_sz));
+        let (btn_bg, border_c, glyph_c) = if crate::theme::dark() {
+            (Color32::from_rgb(51, 65, 85), Color32::from_rgb(71, 85, 105), Color32::from_rgb(226, 232, 240))
+        } else {
+            (Color32::from_rgb(226, 232, 240), Color32::from_rgb(203, 213, 225), Color32::from_rgb(71, 85, 105))
+        };
+        p.rect_filled(btn_rect, 6.0, btn_bg);
+        p.rect_stroke(btn_rect, 6.0, Stroke::new(1.0, border_c), egui::StrokeKind::Inside);
+        let cx = btn_rect.center().x;
+        let cy = btn_rect.center().y - 1.0;
+        let stroke = Stroke::new(1.6, glyph_c);
+        p.line_segment([pos2(cx - 3.5, cy - 1.5), pos2(cx, cy + 2.0)], stroke);
+        p.line_segment([pos2(cx, cy + 2.0), pos2(cx + 3.5, cy - 1.5)], stroke);
+        return;
+    }
     let arrow_left = if rtl() {
         rc.left() + 1.0
     } else {
         rc.right() - 1.0 - 19.0
     };
     let (cx, cy) = (arrow_left + 6.0, rc.top() + 8.0);
+    let stroke_c = crate::theme::colors().combo_chevron;
     p.line(
         vec![
             pos2(cx, cy + 0.5),
@@ -2723,7 +2864,7 @@ fn combo_chevron(p: &Painter, rc: Rect) {
         ],
         Stroke::new(
             crate::theme::metrics().chevron_width,
-            crate::theme::colors().combo_chevron,
+            stroke_c,
         ),
     );
 }
@@ -2800,6 +2941,31 @@ pub fn combo_arrow(ui: &mut Ui, rc: Rect, id: &str, open: bool) -> Response {
     let zone = combo_zone(rc);
     let resp = ui.interact(zone, widget_id(ui, ("combo-arrow", id)), pointer_only());
     let resp = opener_click(ui, resp);
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    if is_modern {
+        let btn_sz = (rc.height() - 8.0).clamp(18.0, 24.0);
+        let btn_rect = Rect::from_center_size(zone.center(), vec2(btn_sz, btn_sz));
+        let hovered = resp.hovered() || open;
+        let (btn_bg, border_c, glyph_c) = if hovered {
+            if crate::theme::dark() {
+                (Color32::from_rgb(71, 85, 105), Color32::from_rgb(100, 116, 139), Color32::WHITE)
+            } else {
+                (Color32::from_rgb(203, 213, 225), Color32::from_rgb(148, 163, 184), Color32::from_rgb(15, 23, 42))
+            }
+        } else if crate::theme::dark() {
+            (Color32::from_rgb(51, 65, 85), Color32::from_rgb(71, 85, 105), Color32::from_rgb(226, 232, 240))
+        } else {
+            (Color32::from_rgb(226, 232, 240), Color32::from_rgb(203, 213, 225), Color32::from_rgb(71, 85, 105))
+        };
+        ui.painter().rect_filled(btn_rect, 6.0, btn_bg);
+        ui.painter().rect_stroke(btn_rect, 6.0, Stroke::new(1.0, border_c), egui::StrokeKind::Inside);
+        let cx = btn_rect.center().x;
+        let cy = btn_rect.center().y - 1.0;
+        let stroke = Stroke::new(1.6, glyph_c);
+        ui.painter().line_segment([pos2(cx - 3.5, cy - 1.5), pos2(cx, cy + 2.0)], stroke);
+        ui.painter().line_segment([pos2(cx, cy + 2.0), pos2(cx + 3.5, cy - 1.5)], stroke);
+        return resp;
+    }
     let state = State::of(&resp, true).open_if(open);
     let c = crate::theme::colors();
     let tint = match state {
@@ -3796,16 +3962,45 @@ fn button_face(
     // A translation wider than the button ends in "..." and shows whole on hover (UI rule).
     let (shown, cut) = fit_label(p, &shown, rc);
     let mnemonic = mnemonic.filter(|_| !cut);
-    let w = text_width(p, &shown);
-    let x = (rc.center().x - w / 2.0).round();
-    // "..." sits on the baseline (no capitals above it): the dots themselves centred.
-    let baseline = if shown.trim() == "..." {
-        rc.top() + (rc.height() / 2.0).round() + 1.0
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0 || crate::theme::metrics().button_radius > 4.0;
+    let font = if is_modern { segoe() } else { tahoma() };
+    let text_color = if is_modern {
+        match kind {
+            ButtonKind::Default | ButtonKind::Accent => Color32::WHITE,
+            ButtonKind::Disabled => {
+                if crate::theme::dark() { Color32::from_rgb(100, 116, 139) } else { Color32::from_rgb(148, 163, 184) }
+            }
+            ButtonKind::Normal => {
+                if state == State::Pressed || state == State::Hot {
+                    if crate::theme::dark() { Color32::WHITE } else { Color32::from_rgb(15, 23, 42) }
+                } else if crate::theme::dark() {
+                    Color32::from_rgb(226, 232, 240)
+                } else {
+                    Color32::from_rgb(30, 41, 59)
+                }
+            }
+        }
     } else {
-        rc.top() + button_baseline(rc.height())
+        face.text
     };
-    // Centred in a rect on screen: placed by its left, not by an English pen.
-    let drawn = text_at(p, tahoma(), x, baseline, &shown, face.text);
+    let drawn = if is_modern {
+        let g = galley(p, font.clone(), &shown, text_color);
+        let sz = g.size();
+        let left = (rc.center().x - sz.x / 2.0).round();
+        let top = (rc.center().y - sz.y / 2.0).round();
+        let d = Rect::from_min_size(pos2(left, top), sz);
+        p.galley(pos2(left, top), g, text_color);
+        d
+    } else {
+        let w = text_width(p, &shown);
+        let x = (rc.center().x - w / 2.0).round();
+        let baseline = if shown.trim() == "..." {
+            rc.top() + (rc.height() / 2.0).round() + 1.0
+        } else {
+            rc.top() + button_baseline(rc.height())
+        };
+        text_at(p, font.clone(), x, baseline, &shown, text_color)
+    };
     let mut pressed_by_key = false;
     if let Some(before) = mnemonic
         && let Some(letter) = shown[before.len()..].chars().next()
@@ -3813,8 +4008,9 @@ fn button_face(
         // Underlined as the menus are (always dark; light once the keyboard is in use), while
         // Alt+letter always works.
         if crate::chrome::cues(ui.ctx()) {
-            let (x0, x1) = char_span(p, &tahoma(), &shown, before.chars().count(), drawn);
-            hline(p, x0, x1, baseline + 3.0, face.text);
+            let (x0, x1) = char_span(p, &font, &shown, before.chars().count(), drawn);
+            let line_y = if is_modern { drawn.bottom() - 1.0 } else { rc.top() + button_baseline(rc.height()) + 3.0 };
+            hline(p, x0, x1, line_y, face.text);
         }
         pressed_by_key = enabled && mnemonic_pressed(ui, letter);
     }
@@ -3850,16 +4046,66 @@ fn paint_button(
     let c = crate::theme::colors();
     let m = crate::theme::metrics();
     let look = crate::theme::current().controls.button;
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0 || crate::theme::metrics().button_radius > 4.0;
     let part = shape != Shape::Push;
-    let radius = match look {
-        _ if shape == Shape::DropDown => control_radius(),
-        _ if part => control_radius().min((rc.height() / 3.0).floor()),
-        ButtonLook::Fluent | ButtonLook::Breeze => control_radius(),
-        ButtonLook::Luna | ButtonLook::Aero => m.button_radius,
-        // Mac OS X's push buttons are round at the ends.
-        ButtonLook::Aqua => (rc.height() / 2.0).floor(),
+    let radius = if is_modern {
+        if shape == Shape::Small { 6.0 } else { 8.0 }
+    } else {
+        match look {
+            _ if shape == Shape::DropDown => control_radius(),
+            _ if part => control_radius().min((rc.height() / 3.0).floor()),
+            ButtonLook::Fluent | ButtonLook::Breeze => control_radius(),
+            ButtonLook::Luna | ButtonLook::Aero => m.button_radius,
+            // Mac OS X's push buttons are round at the ends.
+            ButtonLook::Aqua => (rc.height() / 2.0).floor(),
+        }
     };
     let Some(shine) = Shine::of_button(look) else {
+        if is_modern {
+            let (bg, border_c) = match (kind, state) {
+                (ButtonKind::Disabled, _) => {
+                    if crate::theme::dark() {
+                        (Color32::from_rgb(30, 41, 59), Color32::from_rgb(51, 65, 85))
+                    } else {
+                        (Color32::from_rgb(241, 245, 249), Color32::from_rgb(226, 232, 240))
+                    }
+                }
+                (ButtonKind::Default | ButtonKind::Accent, State::Pressed) => {
+                    (Color32::from_rgb(4, 120, 85), Color32::from_rgb(4, 100, 70))
+                }
+                (ButtonKind::Default | ButtonKind::Accent, State::Hot) => {
+                    (Color32::from_rgb(16, 185, 129), Color32::from_rgb(5, 150, 105))
+                }
+                (ButtonKind::Default | ButtonKind::Accent, _) => {
+                    (Color32::from_rgb(5, 150, 105), Color32::from_rgb(4, 120, 85))
+                }
+                (ButtonKind::Normal, State::Pressed) => {
+                    if crate::theme::dark() {
+                        (Color32::from_rgb(51, 65, 85), Color32::from_rgb(71, 85, 105))
+                    } else {
+                        (Color32::from_rgb(203, 213, 225), Color32::from_rgb(148, 163, 184))
+                    }
+                }
+                (ButtonKind::Normal, State::Hot) => {
+                    if crate::theme::dark() {
+                        (Color32::from_rgb(40, 53, 72), Color32::from_rgb(71, 85, 105))
+                    } else {
+                        (Color32::from_rgb(226, 232, 240), Color32::from_rgb(203, 213, 225))
+                    }
+                }
+                (ButtonKind::Normal, _) => {
+                    if crate::theme::dark() {
+                        (Color32::from_rgb(30, 41, 59), Color32::from_rgb(51, 65, 85))
+                    } else {
+                        (Color32::WHITE, Color32::from_rgb(203, 213, 225))
+                    }
+                }
+            };
+            p.rect_filled(rc, radius, bg);
+            p.rect_stroke(rc, radius, Stroke::new(1.0, border_c), StrokeKind::Inside);
+            return radius;
+        }
+
         p.rect_filled(rc, radius, face.fill);
         p.rect_stroke(
             rc,
@@ -5755,6 +6001,7 @@ fn to_tray_glyph_sized(p: &Painter, c: Pos2, ink: Stroke, rtl: bool, size: f32) 
 pub mod caption {
     #![cfg_attr(not(windows), allow(dead_code))]
     use super::*;
+    use crate::palette::CaptionLook;
 
     crate::theme::themed! {
         /// A title bar we draw ourselves (Windows 11's caption, both themes).
@@ -5781,11 +6028,34 @@ pub mod caption {
         CLOSE_HOVER().gamma_multiply(0.9)
     }
 
+    /// Lerps smoothly between two colors in linear premultiplied space.
+    #[inline]
+    pub fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
+        let (r0, g0, b0, a0) = (a.r() as f32, a.g() as f32, a.b() as f32, a.a() as f32);
+        let (r1, g1, b1, a1) = (b.r() as f32, b.g() as f32, b.b() as f32, b.a() as f32);
+        Color32::from_rgba_premultiplied(
+            (r0 + (r1 - r0) * t).clamp(0.0, 255.0).round() as u8,
+            (g0 + (g1 - g0) * t).clamp(0.0, 255.0).round() as u8,
+            (b0 + (b1 - b0) * t).clamp(0.0, 255.0).round() as u8,
+            (a0 + (a1 - a0) * t).clamp(0.0, 255.0).round() as u8,
+        )
+    }
+
     /// A drawn title bar's height and one caption button's width, in points (Windows 11's).
     pub const CAPTION_H: f32 = 32.0;
+    pub const CAPTION_MODERN_H: f32 = 40.0;
     pub const CAPTION_BUTTON_W: f32 = 46.0;
     /// Where the window's icon ends: the system menu's place in the title bar.
     pub const CAPTION_ICON_W: f32 = 32.0;
+
+    /// The title bar height for the active theme (40px in Modern UI, 32px otherwise).
+    pub fn caption_h() -> f32 {
+        if crate::theme::current().controls.caption == crate::palette::CaptionLook::Modern {
+            CAPTION_MODERN_H
+        } else {
+            CAPTION_H
+        }
+    }
 
     /// How the theme's title bar is laid out (`palette::CaptionLook`).
     #[derive(Clone, Copy)]
@@ -5830,6 +6100,14 @@ pub mod caption {
         };
         match crate::theme::current().controls.caption {
             CaptionLook::System => windows,
+            CaptionLook::Modern => Style {
+                button_w: CAPTION_BUTTON_W,
+                close_w: CAPTION_BUTTON_W,
+                end: 0.0,
+                centred: false,
+                bold: true,
+                ..windows
+            },
             CaptionLook::Metro => Style {
                 centred: true,
                 ..windows
@@ -6003,11 +6281,9 @@ pub mod caption {
                 );
                 p.line(
                     vec![
-                        v(-1.5, -3.5),
-                        v(-1.5, -4.5),
-                        v(4.5, -4.5),
-                        v(4.5, 1.5),
-                        v(3.5, 1.5),
+                        v(-1.0, -3.0),
+                        v(3.0, -3.0),
+                        v(3.0, 1.0),
                     ],
                     s,
                 );
@@ -6015,19 +6291,19 @@ pub mod caption {
             }
             match self {
                 CaptionButton::Minimize => {
-                    p.line_segment([v(-5.0, 0.5), v(5.0, 0.5)], s);
+                    p.line_segment([v(-5.0, 0.0), v(5.0, 0.0)], s);
                 }
                 CaptionButton::Maximize => {
                     p.rect_stroke(
-                        Rect::from_center_size(c, vec2(9.0, 9.0) * size),
+                        Rect::from_center_size(c, vec2(10.0, 10.0) * size),
                         1.0,
                         s,
                         egui::StrokeKind::Inside,
                     );
                 }
                 CaptionButton::Close => {
-                    p.line_segment([v(-5.0, -5.0), v(5.0, 5.0)], s);
-                    p.line_segment([v(-5.0, 5.0), v(5.0, -5.0)], s);
+                    p.line_segment([v(-4.5, -4.5), v(4.5, 4.5)], s);
+                    p.line_segment([v(-4.5, 4.5), v(4.5, -4.5)], s);
                 }
                 CaptionButton::ToTray => to_tray_glyph_sized(p, c, s, rtl(), size),
             }
@@ -6103,6 +6379,68 @@ pub mod caption {
                 (hover, pressed, enabled, active),
                 maximized,
             );
+            let clicked = resp.clicked();
+            if b == CaptionButton::ToTray {
+                resp.on_hover_text(name);
+            }
+            return clicked;
+        }
+        if crate::theme::current().controls.caption == CaptionLook::Modern {
+            let dark = crate::theme::dark();
+            let t_dark = ui.ctx().animate_bool(egui::Id::unique("theme_dark_transition"), dark);
+            let hover_t = ui.ctx().animate_bool_responsive(resp.id.with("modern-hover"), hover);
+            let press_t = ui.ctx().animate_bool_responsive(resp.id.with("modern-press"), pressed);
+
+            if close {
+                if hover_t > 0.001 || press_t > 0.001 {
+                    let base_red = Color32::from_rgb(0xd9, 0x38, 0x3a);
+                    let press_red = Color32::from_rgb(0xb9, 0x2e, 0x30);
+                    let red = lerp_color(base_red, press_red, press_t);
+                    let fill = Color32::from_rgba_unmultiplied(
+                        red.r(),
+                        red.g(),
+                        red.b(),
+                        (hover_t * 255.0).round() as u8,
+                    );
+                    p.rect_filled(rc, 0.0, fill);
+                }
+            } else if hover_t > 0.001 || press_t > 0.001 {
+                let h_alpha = if dark { 24.0 } else { 15.0 };
+                let p_alpha = if dark { 35.0 } else { 26.0 };
+                let alpha = (hover_t * h_alpha + press_t * (p_alpha - h_alpha)).clamp(0.0, 255.0).round() as u8;
+                if alpha > 0 {
+                    let fill = if dark {
+                        Color32::from_white_alpha(alpha)
+                    } else {
+                        Color32::from_black_alpha(alpha)
+                    };
+                    p.rect_filled(rc, 0.0, fill);
+                }
+            }
+
+            let idle_light = if !enabled || !active {
+                Color32::from_rgb(148, 163, 184)
+            } else {
+                Color32::from_rgb(71, 85, 105)
+            };
+            let idle_dark = if !enabled || !active {
+                Color32::from_rgb(100, 116, 139)
+            } else {
+                Color32::from_rgb(226, 232, 240)
+            };
+            let idle_ink = lerp_color(idle_light, idle_dark, t_dark);
+
+            let active_ink = if close {
+                Color32::WHITE
+            } else if dark {
+                Color32::WHITE
+            } else {
+                Color32::from_rgb(15, 23, 42)
+            };
+
+            let ink = lerp_color(idle_ink, active_ink, hover_t.max(press_t));
+            let glyph_center = pos2(rc.center().x.round(), rc.center().y.round());
+            b.glyph(ui, p, glyph_center, ink, maximized, 1.0, 1.0);
             let clicked = resp.clicked();
             if b == CaptionButton::ToTray {
                 resp.on_hover_text(name);
@@ -6298,6 +6636,15 @@ pub mod caption {
         let p = ui.painter().clone();
         let st = style();
         let bar = bar_colour(active);
+        let dark = crate::theme::dark();
+        let t_dark = ui.ctx().animate_bool(egui::Id::unique("theme_dark_transition"), dark);
+        let bar_bg = if crate::theme::current().controls.caption == CaptionLook::Modern {
+            let bg_light = crate::theme::current().palette(false).caption;
+            let bg_dark = crate::theme::current().palette(true).caption;
+            lerp_color(bg_light, bg_dark, t_dark)
+        } else {
+            bar
+        };
         let top = match st.era {
             Some(era) => {
                 let stops = bar_stops(era, bar, crate::theme::colors().gloss);
@@ -6305,10 +6652,78 @@ pub mod caption {
                 stops.first().map_or(bar, |s| s.1)
             }
             None => {
-                p.rect_filled(rect, 0.0, bar);
-                bar
+                p.rect_filled(rect, 0.0, bar_bg);
+                bar_bg
             }
         };
+        if crate::theme::current().controls.caption == CaptionLook::Modern {
+            let sep_light = Color32::from_rgb(0xe2, 0xe8, 0xf0);
+            let sep_dark = Color32::from_rgb(51, 65, 85);
+            let sep_color = lerp_color(sep_light, sep_dark, t_dark);
+            let line_y = rect.bottom().round() - 0.5;
+            p.line_segment(
+                [pos2(rect.left().round(), line_y), pos2(rect.right().round(), line_y)],
+                Stroke::new(1.0, sep_color),
+            );
+            let mut pressed = None;
+            let mut rects = Vec::with_capacity(buttons.len());
+            let bw = CAPTION_BUTTON_W;
+            let bar_right = rect.right().round();
+            let bar_left = rect.left().round();
+            let bar_top = rect.top().round();
+            let bar_bottom = rect.bottom().round();
+            let mut from_end = 0.0f32;
+            for (b, enabled) in buttons {
+                let x0 = if rtl {
+                    bar_left + from_end
+                } else {
+                    bar_right - from_end - bw
+                };
+                from_end += bw;
+                let rc = Rect::from_min_max(pos2(x0, bar_top), pos2(x0 + bw, bar_bottom - 1.0));
+                let hit_rc = Rect::from_min_max(pos2(x0, bar_top), pos2(x0 + bw, bar_bottom));
+                if caption_button(ui, rc, *b, *enabled, active) {
+                    pressed = Some(*b);
+                }
+                rects.push(hit_rc);
+            }
+            FRAME_MAX.with(|c| c.set((false, false)));
+
+            let icon_rc = Rect::from_min_size(
+                pos2(rect.left() + 14.0, rect.center().y - 12.0),
+                vec2(24.0, 24.0),
+            );
+            p.rect_filled(icon_rc, 6.0, Color32::from_rgb(0x10, 0xb9, 0x81));
+            let ic = icon_rc.center();
+            let white_s = Stroke::new(1.8, Color32::WHITE);
+            p.line(vec![pos2(ic.x - 5.0, ic.y + 2.0), pos2(ic.x - 5.0, ic.y + 5.0), pos2(ic.x + 5.0, ic.y + 5.0), pos2(ic.x + 5.0, ic.y + 2.0)], white_s);
+            p.line_segment([pos2(ic.x, ic.y - 5.0), pos2(ic.x, ic.y + 2.0)], white_s);
+            p.line_segment([pos2(ic.x - 3.0, ic.y - 0.5), pos2(ic.x, ic.y + 2.5)], white_s);
+            p.line_segment([pos2(ic.x + 3.0, ic.y - 0.5), pos2(ic.x, ic.y + 2.5)], white_s);
+
+            let title_font = FontId::new(13.0, egui::FontFamily::Proportional);
+            let light_ink = if active { Color32::from_rgb(30, 41, 59) } else { Color32::from_rgb(148, 163, 184) };
+            let dark_ink = if active { Color32::from_rgb(241, 245, 249) } else { Color32::from_rgb(100, 116, 139) };
+            let title_ink = lerp_color(light_ink, dark_ink, t_dark);
+            let title_g = p.layout_no_wrap(title.to_owned(), title_font, title_ink);
+            let title_pos = pos2(icon_rc.right() + 10.0, rect.center().y - title_g.size().y / 2.0);
+            let title_rect = Rect::from_min_size(title_pos, title_g.size());
+            p.galley(title_pos, title_g, title_ink);
+
+            let label = ui.interact(title_rect, widget_id(ui, "caption-title"), Sense::hover());
+            if SYSTEM_SPEAKS {
+                unspoken(ui, &label);
+            } else {
+                expose(&label, egui::Role::Label, title, true, None);
+            }
+
+            return TitleBar {
+                pressed,
+                buttons: rects,
+                icon: icon_rc,
+                top: bar_bg,
+            };
+        }
         let mut pressed = None;
         let mut rects = Vec::with_capacity(buttons.len());
         // From the window's end inwards, each as wide as its kind is.
@@ -6476,6 +6891,18 @@ mod tests {
             }
         });
         out.textures_delta.clear();
+    }
+
+    #[test]
+    fn running_on_non_windows_os_falls_back_from_segoe_ui_to_system_proportional_font() {
+        let mut defs = egui::FontDefinitions::default();
+        let empty_dir = std::path::Path::new("non_existent_fonts_dir_fallback_test");
+        install_fonts(&mut defs, Some(empty_dir));
+        let prop = defs.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
+        let segoe = defs.families.get(&FontFamily::Name("segoe".into())).cloned().unwrap_or_default();
+        let segoe_bold = defs.families.get(&FontFamily::Name("segoe-bold".into())).cloned().unwrap_or_default();
+        assert_eq!(segoe, prop);
+        assert_eq!(segoe_bold, prop);
     }
 
     #[test]

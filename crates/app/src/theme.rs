@@ -7,7 +7,7 @@ use std::cell::Cell;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use crate::palette::{CLASSIC, Metrics, Palette, Theme};
+use crate::palette::{CLASSIC, MODERN, Metrics, Palette, Theme};
 
 static DARK: AtomicBool = AtomicBool::new(true);
 
@@ -83,7 +83,11 @@ pub fn select(id: &str, ctx: &egui::Context) -> Vec<String> {
     // pywal's file is followed again only if this theme is made from it (`themefile::load_in`).
     crate::themefile::forget_pywal();
     *SELECTED.lock().unwrap_or_else(|e| e.into_inner()) = id.clone();
-    if id.is_empty() || id == CLASSIC.id {
+    if id == "modern" || id == MODERN.id {
+        set(MODERN.clone());
+        return Vec::new();
+    }
+    if id.is_empty() || id == CLASSIC.id || id == "classic" {
         set(CLASSIC.clone());
         return Vec::new();
     }
@@ -162,7 +166,13 @@ pub fn startup_id(setting: &str) -> String {
     std::env::var("MDM_THEME")
         .ok()
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| setting.to_owned())
+        .unwrap_or_else(|| {
+            if setting == "classic" || setting.is_empty() {
+                "modern".to_owned()
+            } else {
+                setting.to_owned()
+            }
+        })
 }
 
 /// What the system said when Native was last made.
@@ -265,7 +275,7 @@ fn wanted(dark_mode_support: bool, always_dark: bool, system_dark: bool) -> bool
 macro_rules! themed {
     ($($(#[$m:meta])* $vis:vis $name:ident => $role:ident;)*) => {$(
         $(#[$m])*
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, dead_code)]
         $vis fn $name() -> egui::Color32 {
             $crate::theme::colors().$role
         }
@@ -397,7 +407,6 @@ fn symbol_fonts() -> Vec<Vec<u8>> {
 }
 
 /// The folder the font tables name files in.
-#[cfg(any(windows, target_os = "macos"))]
 fn font_dir() -> std::path::PathBuf {
     #[cfg(windows)]
     return std::env::var_os("WINDIR")
@@ -405,6 +414,8 @@ fn font_dir() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from(r"C:\Windows\Fonts"));
     #[cfg(target_os = "macos")]
     return std::path::PathBuf::from("/System/Library/Fonts");
+    #[cfg(not(any(windows, target_os = "macos")))]
+    return std::path::PathBuf::from("/usr/share/fonts");
 }
 
 /// Resolves a font file path in `dir`. On macOS 15+ (Sequoia / Tahoe), `PingFang.ttc` moved out
@@ -928,10 +939,7 @@ fn fonts(ctx: &egui::Context, code: &str, all: bool) {
                 .insert(0, "segoe-ui".into());
         }
     }
-    #[cfg(windows)]
     crate::winui::install_fonts(&mut defs, Some(&font_dir()));
-    #[cfg(not(windows))]
-    crate::winui::install_fonts(&mut defs, None);
     // A fallback's glyphs sit on the baseline of the family's first font (Japanese next to
     // Latin digits, Georgian in a Tahoma line), not centred in its row.
     let on_baseline = |bytes: Vec<u8>| {

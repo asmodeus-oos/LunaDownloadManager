@@ -302,10 +302,13 @@ pub fn data_dir() -> Option<PathBuf> {
             return Some(dir);
         }
         let base = dirs::data_dir()?;
-        let dir = base.join("misterdownloadmanager");
-        let legacy = base.join("idmnext");
+        let dir = base.join("lunadownloadmanager");
+        let legacy = base.join("misterdownloadmanager");
+        let old_legacy = base.join("idmnext");
         if !dir.exists() && legacy.is_dir() {
             let _ = std::fs::rename(&legacy, &dir);
+        } else if !dir.exists() && old_legacy.is_dir() {
+            let _ = std::fs::rename(&old_legacy, &dir);
         }
         Some(dir)
     })

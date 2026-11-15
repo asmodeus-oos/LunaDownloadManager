@@ -1,7 +1,7 @@
-# Mister Download Manager
+# Luna Download Manager
 
 <p align="center">
-  <img src="docs/images/logo.png" alt="Mister Download Manager's logo" width="160">
+  <img src="docs/images/logo.png" alt="Luna Download Manager's logo" width="160">
 </p>
 
 <h3 align="center">Downloads faster than IDM. Free, forever.</h3>
@@ -9,9 +9,9 @@
 <p align="center">🌐 <a href="https://misterdownloadmanager.com"><b>misterdownloadmanager.com</b></a>: the official website, with the downloads, help and news</p>
 
 <p align="center">
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-Windows-2a78d6?style=flat-square&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0yIDMuNWw4LjUtMS4ydjguMkgyek0xMS41IDIuMkwyMiAuOHY5LjdIMTEuNXpNMiAxMS41aDguNXY4LjJMMiAxOC41ek0xMS41IDExLjVIMjJ2OS43bC0xMC41LTEuNHoiLz48L3N2Zz4%3D" alt="Download for Windows" height="34"></a>
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-macOS-2a78d6?style=flat-square&logo=apple&logoColor=white" alt="Download for macOS" height="34"></a>
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-Linux-2a78d6?style=flat-square&logo=linux&logoColor=white" alt="Download for Linux" height="34"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-Windows-2a78d6?style=flat-square&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0yIDMuNWw4LjUtMS4ydjguMkgyek0xMS41IDIuMkwyMiAuOHY5LjdIMTEuNXpNMiAxMS41aDguNXY4LjJMMiAxOC41ek0xMS41IDExLjVIMjJ2OS43bC0xMC41LTEuNHoiLz48L3N2Zz4%3D" alt="Download for Windows" height="34"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-macOS-2a78d6?style=flat-square&logo=apple&logoColor=white" alt="Download for macOS" height="34"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-Linux-2a78d6?style=flat-square&logo=linux&logoColor=white" alt="Download for Linux" height="34"></a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/stargazers"><img src="https://img.shields.io/github/stars/anefzaoui/misterdownloadmanager?style=social&label=Star%20MDM" alt="Star Mister Download Manager on GitHub" height="28"></a><br>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/stargazers"><img src="https://img.shields.io/github/stars/asmodeus-oos/LunaDownloadManager?style=social&label=Star%20MDM" alt="Star Luna Download Manager on GitHub" height="28"></a><br>
   <sub>⭐ <b>Like it? Give it a star.</b> MDM has no ads and no marketing budget: stars are how people find it.</sub>
 </p>
 
@@ -46,18 +46,18 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/main-dark.webp">
-    <img src="docs/images/main-light.webp" alt="Mister Download Manager's main window: categories, toolbar and a list of downloads" width="920">
+    <img src="docs/images/main-light.webp" alt="Luna Download Manager's main window: categories, toolbar and a list of downloads" width="920">
   </picture>
 </p>
 
 <p align="center">
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/releases/latest"><img src="https://img.shields.io/github/v/release/anefzaoui/misterdownloadmanager?logo=github" alt="Latest release"></a>
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/releases"><img src="https://img.shields.io/github/downloads/anefzaoui/misterdownloadmanager/total?logo=github" alt="Downloads"></a>
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/anefzaoui/misterdownloadmanager/ci.yml?logo=github&label=ci" alt="CI"></a>
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/stargazers"><img src="https://img.shields.io/github/stars/anefzaoui/misterdownloadmanager?logo=github" alt="GitHub stars"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/releases/latest"><img src="https://img.shields.io/github/v/release/asmodeus-oos/LunaDownloadManager?logo=github" alt="Latest release"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/releases"><img src="https://img.shields.io/github/downloads/asmodeus-oos/LunaDownloadManager/total?logo=github" alt="Downloads"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/asmodeus-oos/LunaDownloadManager/ci.yml?logo=github&label=ci" alt="CI"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/stargazers"><img src="https://img.shields.io/github/stars/asmodeus-oos/LunaDownloadManager?logo=github" alt="GitHub stars"></a>
   <a href="https://addons.mozilla.org/firefox/addon/mister-download-manager/"><img src="https://img.shields.io/amo/v/mister-download-manager?logo=firefoxbrowser&label=Firefox%20add-on" alt="Firefox add-on"></a>
   <a href="https://chromewebstore.google.com/detail/mister-download-manager/ejoleppdfgjdndddcjoehopknmlglojp"><img src="https://img.shields.io/chrome-web-store/v/ejoleppdfgjdndddcjoehopknmlglojp?logo=googlechrome&label=Chrome%20Web%20Store" alt="Chrome Web Store"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/anefzaoui/misterdownloadmanager" alt="GPL-3.0 license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/asmodeus-oos/LunaDownloadManager" alt="GPL-3.0 license"></a>
 </p>
 
 | 🚀 [Download](#download) | ⚡ [Why switch](#why-switch-from-idm) | 🖼️ [Screenshots](#screenshots) | ✨ [Getting started](docs/getting-started.md) | 📜 [Help and tutorials](docs/README.md) |
@@ -70,12 +70,12 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/races-dark.svg">
-    <img src="docs/images/races-light.svg" alt="Three races. A big 1 GB file: Mister Download Manager 1 second, IDM 5.5 seconds, 5 times faster. A small file: instantly versus 3.1 seconds, over 100 times faster. A shaky connection: 1.6 seconds versus 5.4 seconds, 3 times faster." width="880">
+    <img src="docs/images/races-light.svg" alt="Three races. A big 1 GB file: Luna Download Manager 1 second, IDM 5.5 seconds, 5 times faster. A small file: instantly versus 3.1 seconds, over 100 times faster. A shaky connection: 1.6 seconds versus 5.4 seconds, 3 times faster." width="880">
   </picture>
 </p>
 
 <!-- compare:start -->
-| | Mister Download Manager | IDM 6.42 |
+| | Luna Download Manager | IDM 6.42 |
 | --- | --- | --- |
 | Download a big file (1 GB) | **1 second** | 5.5 seconds |
 | Download a small file | **instantly** | 3.1 seconds |
@@ -93,12 +93,12 @@ programs at their default settings ([how we measured](#the-benchmark-in-detail))
 ## Download
 
 <p align="center">
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-Windows-2a78d6?style=flat-square&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0yIDMuNWw4LjUtMS4ydjguMkgyek0xMS41IDIuMkwyMiAuOHY5LjdIMTEuNXpNMiAxMS41aDguNXY4LjJMMiAxOC41ek0xMS41IDExLjVIMjJ2OS43bC0xMC41LTEuNHoiLz48L3N2Zz4%3D" alt="Download for Windows" height="34"></a>
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-macOS-2a78d6?style=flat-square&logo=apple&logoColor=white" alt="Download for macOS" height="34"></a>
-  <a href="https://github.com/anefzaoui/misterdownloadmanager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-Linux-2a78d6?style=flat-square&logo=linux&logoColor=white" alt="Download for Linux" height="34"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-Windows-2a78d6?style=flat-square&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0yIDMuNWw4LjUtMS4ydjguMkgyek0xMS41IDIuMkwyMiAuOHY5LjdIMTEuNXpNMiAxMS41aDguNXY4LjJMMiAxOC41ek0xMS41IDExLjVIMjJ2OS43bC0xMC41LTEuNHoiLz48L3N2Zz4%3D" alt="Download for Windows" height="34"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-macOS-2a78d6?style=flat-square&logo=apple&logoColor=white" alt="Download for macOS" height="34"></a>
+  <a href="https://github.com/asmodeus-oos/LunaDownloadManager/releases/latest"><img src="https://img.shields.io/badge/Download%20for-Linux-2a78d6?style=flat-square&logo=linux&logoColor=white" alt="Download for Linux" height="34"></a>
 </p>
 
-On the [download page](https://github.com/anefzaoui/misterdownloadmanager/releases/latest), pick
+On the [download page](https://github.com/asmodeus-oos/LunaDownloadManager/releases/latest), pick
 one:
 
 | File | Choose it when |
@@ -116,8 +116,8 @@ Or with [WinGet](https://learn.microsoft.com/windows/package-manager/winget/), W
 manager: in a terminal, the first line installs MDM and the second updates it.
 
 ```
-winget install AhmedNefzaoui.MisterDownloadManager
-winget upgrade AhmedNefzaoui.MisterDownloadManager
+winget install asmodeus-oos.LunaDownloadManager
+winget upgrade asmodeus-oos.LunaDownloadManager
 ```
 
 ### On Linux
@@ -138,7 +138,7 @@ Up to version 0.2.4, the files' names end in `-experimental`.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/main-linux-dark.webp">
-    <img src="docs/images/main-linux.webp" alt="Mister Download Manager's main window on Ubuntu's GNOME desktop" width="620">
+    <img src="docs/images/main-linux.webp" alt="Luna Download Manager's main window on Ubuntu's GNOME desktop" width="620">
   </picture>
 </p>
 
@@ -146,7 +146,7 @@ Up to version 0.2.4, the files' names end in `-experimental`.
 
 Fresh builds for **macOS** (Apple Silicon and Intel) are on the same download page, marked
 `-experimental`: we haven't tried them on a Mac ourselves yet. Give them a go and
-[tell us how it went](https://github.com/anefzaoui/misterdownloadmanager/issues/new/choose); you'll
+[tell us how it went](https://github.com/asmodeus-oos/LunaDownloadManager/issues/new/choose); you'll
 help make them as solid as the Windows and Linux versions.
 
 | File | For |
@@ -327,7 +327,7 @@ statistically significant (Mann-Whitney p < 0.001), and MDM used less CPU in eve
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/bench-time-dark.svg">
-    <img src="docs/images/bench-time-light.svg" alt="Time to finish a download in seconds, Mister Download Manager versus IDM, in seven scenarios" width="880">
+    <img src="docs/images/bench-time-light.svg" alt="Time to finish a download in seconds, Luna Download Manager versus IDM, in seven scenarios" width="880">
   </picture>
 </p>
 
@@ -375,15 +375,15 @@ cargo build --release
 cargo test
 ```
 
-This makes `misterdownloadmanager.exe` (the app), `misterdownloadmanager-cli.exe` (headless
-command line), `misterdownloadmanager-mcp.exe` (the MCP server for AI assistants) and
-`misterdownloadmanager-nmhost.exe` (the browser host) in `target\release\`.
+This makes `misterdownloadmanager.exe` (the app), `lunadownloadmanager-cli.exe` (headless
+command line), `lunadownloadmanager-mcp.exe` (the MCP server for AI assistants) and
+`lunadownloadmanager-nmhost.exe` (the browser host) in `target\release\`.
 `tools\installer\build.ps1` builds the installer and both zips into `target\dist\` (needs
 [Inno Setup 6](https://jrsoftware.org/isinfo.php)); a `vX.Y.Z` tag does the same on GitHub
 Actions and publishes the release.
 
 Browser integration from a build: register the native messaging host with
-`target\release\misterdownloadmanager-nmhost.exe --register` (undo with `--unregister`), then in
+`target\release\lunadownloadmanager-nmhost.exe --register` (undo with `--unregister`), then in
 `chrome://extensions` or `edge://extensions` turn on Developer mode, **Load unpacked** and pick
 the `extension/` folder (its ID is always `oogbclbbninliongijffeeggalppliok`).
 
@@ -445,9 +445,9 @@ Linux, and some corners are still "good enough for now".
   Flatpak browsers aren't supported yet.
 
 Bug reports are welcome in
-[Issues](https://github.com/anefzaoui/misterdownloadmanager/issues/new/choose): **Help → Report a problem**
+[Issues](https://github.com/asmodeus-oos/LunaDownloadManager/issues/new/choose): **Help → Report a problem**
 in the app fills in your version and system. Ideas are welcome in
-[Discussions](https://github.com/anefzaoui/misterdownloadmanager/discussions/categories/ideas). Pull requests are accepted under the same licence: start with [CONTRIBUTING.md](CONTRIBUTING.md).
+[Discussions](https://github.com/asmodeus-oos/LunaDownloadManager/discussions/categories/ideas). Pull requests are accepted under the same licence: start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Made possible by these amazing humans
 
@@ -491,12 +491,12 @@ shows what each one did.
 ## ⭐ Star history
 
 If MDM saves you time, a star is the quickest way to say so, and it helps the next person find
-a free download manager. [Star it on GitHub](https://github.com/anefzaoui/misterdownloadmanager/stargazers).
+a free download manager. [Star it on GitHub](https://github.com/asmodeus-oos/LunaDownloadManager/stargazers).
 
-<a href="https://star-history.com/#anefzaoui/misterdownloadmanager&Date">
+<a href="https://star-history.com/#asmodeus-oos/LunaDownloadManager&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=anefzaoui/misterdownloadmanager&type=Date&theme=dark">
-    <img src="https://api.star-history.com/svg?repos=anefzaoui/misterdownloadmanager&type=Date" alt="Mister Download Manager's GitHub stars over time" width="600">
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=asmodeus-oos/LunaDownloadManager&type=Date&theme=dark">
+    <img src="https://api.star-history.com/svg?repos=asmodeus-oos/LunaDownloadManager&type=Date" alt="Luna Download Manager's GitHub stars over time" width="600">
   </picture>
 </a>
 
@@ -508,7 +508,7 @@ changes or unlocks, and there is no paid edition.
 
 ## Licence and credits
 
-Copyright (c) 2026 Ahmed Nefzaoui. Mister Download Manager is free software under the
+Copyright (c) 2026 Ahmed Nefzaoui. Luna Download Manager is free software under the
 [GNU General Public License, version 3](LICENSE) or (at your option) any later version.
 
 Built on [egui](https://github.com/emilk/egui) through

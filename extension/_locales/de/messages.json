@@ -1,12 +1,12 @@
-{
+﻿{
   "name": {
-    "message": "Mister Download Manager"
+    "message": "Luna Download Manager"
   },
   "description": {
-    "message": "Übergibt Downloads vom Browser an Mister Download Manager."
+    "message": "Übergibt Downloads vom Browser an Luna Download Manager."
   },
   "menu": {
-    "message": "Mit Mister Download Manager herunterladen"
+    "message": "Mit Luna Download Manager herunterladen"
   },
   "video_download": {
     "message": "Video herunterladen"
@@ -30,19 +30,19 @@
     "message": "Schaltflächeneinstellungen..."
   },
   "video_sent": {
-    "message": "An Mister Download Manager gesendet"
+    "message": "An Luna Download Manager gesendet"
   },
   "menu_selected": {
-    "message": "Ausgewählte Links mit Mister Download Manager herunterladen"
+    "message": "Ausgewählte Links mit Luna Download Manager herunterladen"
   },
   "menu_all": {
-    "message": "Alle Links mit Mister Download Manager herunterladen"
+    "message": "Alle Links mit Luna Download Manager herunterladen"
   },
   "status_connected": {
-    "message": "Mit Mister Download Manager verbunden"
+    "message": "Mit Luna Download Manager verbunden"
   },
   "status_connected_version": {
-    "message": "Mit Mister Download Manager $version$ verbunden",
+    "message": "Mit Luna Download Manager $version$ verbunden",
     "placeholders": {
       "version": {
         "content": "$1",
@@ -54,22 +54,22 @@
     "message": "Angehalten: Downloads verbleiben im Browser"
   },
   "status_not_installed": {
-    "message": "Mister Download Manager ist nicht installiert oder die Browserintegration ist nicht eingerichtet"
+    "message": "Luna Download Manager ist nicht installiert oder die Browserintegration ist nicht eingerichtet"
   },
   "status_forbidden": {
-    "message": "Mister Download Manager akzeptiert diese Kopie der Erweiterung nicht"
+    "message": "Luna Download Manager akzeptiert diese Kopie der Erweiterung nicht"
   },
   "status_not_running": {
-    "message": "Mister Download Manager wurde nicht rechtzeitig gestartet"
+    "message": "Luna Download Manager wurde nicht rechtzeitig gestartet"
   },
   "status_host_failed": {
-    "message": "Die Verbindung zu Mister Download Manager ist fehlgeschlagen"
+    "message": "Die Verbindung zu Luna Download Manager ist fehlgeschlagen"
   },
   "status_too_large": {
     "message": "Die Details dieses Downloads waren zu groß, um sie zu übergeben"
   },
   "status_update_app": {
-    "message": "Aktualisieren Sie Mister Download Manager, um alle Funktionen dieser Erweiterung nutzen zu können"
+    "message": "Aktualisieren Sie Luna Download Manager, um alle Funktionen dieser Erweiterung nutzen zu können"
   },
   "popup_take": {
     "message": "Downloads von diesem Browser übernehmen"
@@ -78,10 +78,10 @@
     "message": "Downloads über den Proxy oder die VPN-Erweiterung dieses Browsers senden"
   },
   "popup_proxy_title": {
-    "message": "Mister Download Manager lädt dann über denselben Proxy wie dieser Browser herunter. Der Browser fordert Sie einmal auf, dies zuzulassen; wenn Sie dies deaktivieren, wird dies rückgängig gemacht."
+    "message": "Luna Download Manager lädt dann über denselben Proxy wie dieser Browser herunter. Der Browser fordert Sie einmal auf, dies zuzulassen; wenn Sie dies deaktivieren, wird dies rückgängig gemacht."
   },
   "popup_proxy_title_chromium": {
-    "message": "Mister Download Manager lädt dann über denselben Proxy wie dieser Browser herunter. Wenn diese Option deaktiviert ist, liest die Erweiterung die Proxy-Einstellungen des Browsers nicht."
+    "message": "Luna Download Manager lädt dann über denselben Proxy wie dieser Browser herunter. Wenn diese Option deaktiviert ist, liest die Erweiterung die Proxy-Einstellungen des Browsers nicht."
   },
   "popup_exclude_site": {
     "message": "Niemals Downloads von $site$ übernehmen",
@@ -102,7 +102,7 @@
     }
   },
   "popup_open": {
-    "message": "Mister Download Manager öffnen"
+    "message": "Luna Download Manager öffnen"
   },
   "popup_options": {
     "message": "Optionen..."
@@ -189,16 +189,16 @@
     "message": "Hier gibt es kein Video zum Herunterladen"
   },
   "video_playlist": {
-    "message": "Eine Liste von Videos: Wählen Sie sie in Mister Download Manager aus"
+    "message": "Eine Liste von Videos: Wählen Sie sie in Luna Download Manager aus"
   },
   "video_no_ytdlp": {
-    "message": "Mister Download Manager benötigt yt-dlp für dieses Video"
+    "message": "Luna Download Manager benötigt yt-dlp für dieses Video"
   },
   "video_too_long": {
     "message": "Die Abfrage hat zu lange gedauert"
   },
   "video_busy": {
-    "message": "Mister Download Manager ist mit anderen Videos beschäftigt"
+    "message": "Luna Download Manager ist mit anderen Videos beschäftigt"
   },
   "video_queued": {
     "message": "Zur Warteschlange hinzugefügt"
@@ -222,7 +222,7 @@
     "message": "Dieser Computer"
   },
   "popup_send_remote": {
-    "message": "Ein anderer Mister Download Manager (ein Server)"
+    "message": "Ein anderer Luna Download Manager (ein Server)"
   },
   "popup_remote_code": {
     "message": "Kopplungscode"
@@ -318,7 +318,7 @@
     "message": "Alle Qualitäten und Untertitel..."
   },
   "video_failed": {
-    "message": "Mister Download Manager ist nicht installiert oder wurde nicht gestartet"
+    "message": "Luna Download Manager ist nicht installiert oder wurde nicht gestartet"
   },
   "video_download_best": {
     "message": "Beste Qualität herunterladen"

@@ -695,7 +695,13 @@ fn place_to_take(item: &Item, items: &[Item]) -> Option<PathBuf> {
 }
 
 /// The status strip's height, under the list and the Categories pane.
-const STRIP_H: f32 = 22.0;
+fn strip_h() -> f32 {
+    if crate::theme::metrics().flyout_radius >= 12.0 {
+        36.0
+    } else {
+        22.0
+    }
+}
 
 impl Cmd {
     /// The key that runs this command anywhere in the main window, as the shortcuts list writes
@@ -1832,9 +1838,106 @@ impl App {
     /// how fast in all (beyond IDM, which has no status bar).
     fn status_strip(&self, ui: &Ui, o: Pos2, w: f32, h: f32, shown: usize) {
         let p = ui.painter();
-        let top = o.y + h - STRIP_H;
+        let top = o.y + h - strip_h();
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+
+        if is_modern {
+            let bg_c = if crate::theme::dark() {
+                egui::Color32::from_rgb(15, 23, 42)
+            } else {
+                egui::Color32::from_rgb(248, 250, 252)
+            };
+            p.rect_filled(crate::winui::rect(egui::Rect::from_min_size(pos2(o.x, top), egui::vec2(w, 36.0))), 0.0, bg_c);
+
+            let border_c = if crate::theme::dark() {
+                egui::Color32::from_rgb(51, 65, 85)
+            } else {
+                egui::Color32::from_rgb(226, 232, 240)
+            };
+            p.line_segment(
+                [pos2(o.x, top), pos2(o.x + w, top)],
+                egui::Stroke::new(1.0, border_c),
+            );
+
+            let text_c = if crate::theme::dark() {
+                egui::Color32::from_rgb(203, 213, 225)
+            } else {
+                egui::Color32::from_rgb(71, 85, 105)
+            };
+
+            let n = shown as u64;
+            let count_str = crate::i18n::tn(n, "{n} download", "{n} downloads");
+            let mut cur_x = o.x + 16.0;
+            let text_y = top + 22.0;
+            winui::text_font(p, winui::segoe(), cur_x, text_y, &count_str, text_c);
+            cur_x += winui::text_width_font(p, winui::segoe(), &count_str) + 14.0;
+
+            let selected = self.selection.ids().len() as u64;
+            if selected > 0 {
+                let sel_str = crate::i18n::tn(selected, "{n} selected", "{n} selected");
+                let sw = winui::text_width_font(p, winui::segoe(), &sel_str);
+                let badge_h = 22.0;
+                let badge_rect = egui::Rect::from_min_size(pos2(cur_x, top + 7.0), egui::vec2(sw + 16.0, badge_h));
+                let (bg, fg, stroke) = if crate::theme::dark() {
+                    (
+                        egui::Color32::from_rgba_premultiplied(16, 185, 129, 45),
+                        egui::Color32::from_rgb(52, 211, 153),
+                        egui::Color32::from_rgba_premultiplied(16, 185, 129, 90),
+                    )
+                } else {
+                    (
+                        egui::Color32::from_rgb(236, 253, 245),
+                        egui::Color32::from_rgb(5, 150, 105),
+                        egui::Color32::from_rgb(167, 243, 208),
+                    )
+                };
+                p.rect_filled(winui::rect(badge_rect), 11.0, bg);
+                p.rect_stroke(winui::rect(badge_rect), 11.0, egui::Stroke::new(1.0, stroke), egui::StrokeKind::Inside);
+                winui::text_font(p, winui::segoe(), cur_x + 8.0, top + 21.5, &sel_str, fg);
+            }
+
+            let mut end_x = o.x + w - 16.0;
+            let reading = self.importing.pending().next().map(|path| {
+                let file = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                crate::i18n::fmt(
+                    crate::i18n::t("Reading {file}..."),
+                    &[("file", &crate::i18n::isolate(&file))],
+                )
+            });
+            let right_text = match (reading, self.activity()) {
+                (Some(r), Some(a)) => Some(format!("{r}   {a}")),
+                (r, a) => r.or(a),
+            };
+            if let Some(right) = right_text {
+                let rw = winui::text_width_font(p, winui::segoe(), &right);
+                winui::text_right(p, end_x, top + 22.0, &right, text_c);
+                end_x -= rw + 16.0;
+            }
+
+            let queue_active = self.queues.iter().any(|q| q.running);
+            if queue_active {
+                let q_str = crate::i18n::t("Main Queue Active");
+                let qw = winui::text_width_font(p, winui::segoe(), q_str);
+                let q_badge_w = qw + 26.0;
+                let q_badge_h = 22.0;
+                let q_rect = egui::Rect::from_min_size(pos2(end_x - q_badge_w, top + 7.0), egui::vec2(q_badge_w, q_badge_h));
+                let (q_bg, q_fg) = if crate::theme::dark() {
+                    (egui::Color32::from_rgb(30, 41, 59), egui::Color32::from_rgb(148, 163, 184))
+                } else {
+                    (egui::Color32::from_rgb(241, 245, 249), egui::Color32::from_rgb(71, 85, 105))
+                };
+                p.rect_filled(winui::rect(q_rect), 11.0, q_bg);
+                p.circle_filled(pos2(q_rect.left() + 9.0, q_rect.top() + 11.0), 3.5, egui::Color32::from_rgb(16, 185, 129));
+                winui::text_font(p, winui::segoe(), q_rect.left() + 17.0, top + 21.5, q_str, q_fg);
+            }
+            return;
+        }
+
         // Centred in the band it reads as: the strip and the 5 px gap above it, under the panes.
-        let baseline = winui::baseline_in(top - 5.0, STRIP_H + 5.0);
+        let baseline = winui::baseline_in(top - 5.0, strip_h() + 5.0);
         let n = shown as u64;
         let mut left = crate::i18n::tn(n, "{n} download", "{n} downloads");
         let selected = self.selection.ids().len() as u64;
@@ -5731,7 +5834,7 @@ impl App {
             return line(&ApiAnswer { api: on });
         } else if !self.settings.automation_api {
             return line(&ErrorAnswer {
-                error: "the automation API is off (misterdownloadmanager-cli api on)".into(),
+                error: "the automation API is off (lunadownloadmanager-cli api on)".into(),
                 code: Some(ipc::api::API_OFF.into()),
             });
         }
@@ -6481,7 +6584,24 @@ impl App {
             .and_then(|id| self.items.iter().find(|i| i.id == id))
             .is_some_and(|i| i.moved_away);
         match cmd {
-            Cmd::AddUrl => self.add_url = Some(AddUrl::from_clipboard(&self.settings.url_history)),
+            Cmd::AddUrl => {
+                let vid = egui::ViewportId::from_hash_of("add-url");
+                ctx.send_viewport_cmd_to(vid, egui::ViewportCommand::Focus);
+                ctx.send_viewport_cmd_to(vid, egui::ViewportCommand::Minimized(false));
+                ctx.send_viewport_cmd_to(vid, egui::ViewportCommand::Visible(true));
+                #[cfg(windows)]
+                {
+                    crate::win32::come_forward(crate::i18n::t("Enter new address to download"));
+                    crate::win32::show_hidden(crate::i18n::t("Enter new address to download"));
+                }
+                let key = egui::Id::unique(("dialog-pos", "add-url"));
+                ctx.data_mut(|d| {
+                    d.remove::<u32>(key.with("front"));
+                    d.remove::<bool>(key.with("focus-sent"));
+                });
+                self.add_url = Some(AddUrl::from_clipboard(&self.settings.url_history));
+                ctx.request_repaint();
+            }
             Cmd::Exit => {
                 self.exiting = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -7228,10 +7348,10 @@ impl App {
                 Err(e) => {
                     if self.save_failed.as_ref() != Some(&e) {
                         self.notice = Some((
-                            crate::i18n::mark("Mister Download Manager"),
+                            crate::i18n::mark("Luna Download Manager"),
                             crate::i18n::fmt(
                                 crate::i18n::t(
-                                    "The download list could not be saved: {error}. Changes are kept while MDM runs.",
+                                    "The download list could not be saved: {error}. Changes are kept while Luna runs.",
                                 ),
                                 &[("error", &e)],
                             ),
@@ -7443,7 +7563,7 @@ impl App {
                 I("&Keyboard shortcuts", Cmd::Shortcuts, true, false),
                 Sep,
                 I(
-                    "Mister Download Manager &Home Page",
+                    "Luna Download Manager &Home Page",
                     Cmd::HelpPage(""),
                     true,
                     false,
@@ -7452,10 +7572,10 @@ impl App {
                 Sep,
                 I("Check for &updates...", Cmd::CheckUpdates, true, false),
                 Sep,
-                I("&About Mister Download Manager", Cmd::About, true, false),
+                I("&About Luna Download Manager", Cmd::About, true, false),
                 I("Tell a &friend", Cmd::TellFriend, true, false),
-                // MDM's, not IDM's: the creator's GitHub Sponsors page, asked for only.
-                I("Support &MDM", Cmd::Support, true, false),
+                // Luna's, not IDM's: the creator's GitHub Sponsors page, asked for only.
+                I("Support &Luna", Cmd::Support, true, false),
             ],
         };
         // View → Theme (MDM's, #45), after Always dark; then Draw with (#89, #206), where wgpu is
@@ -7789,7 +7909,7 @@ impl App {
             Popup::Node(node) => (self.node_entries(node), None),
             Popup::DropTarget => (
                 vec![
-                    MenuEntry::Item("Show Mister Download Manager", Cmd::ShowMain, true, false),
+                    MenuEntry::Item("Show Luna Download Manager", Cmd::ShowMain, true, false),
                     MenuEntry::Item("&Add new download", Cmd::AddUrl, true, false),
                     MenuEntry::Sep,
                     MenuEntry::Item("Hide drop target", Cmd::ToggleDropTarget, true, false),
@@ -8179,8 +8299,9 @@ impl App {
         }
         // Each top node's downloads, as its list would show them (before column filters):
         // the pane is narrow, its children's names fill it already.
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
         for (row, view, _) in &mut rows {
-            if row.level == 0
+            if (row.level == 0 || is_modern)
                 && let Some(v) = view
             {
                 let n = self.items.iter().filter(|i| self.in_view(*v, i)).count();
@@ -8201,7 +8322,7 @@ impl App {
     fn drawn_caption(&mut self, ui: &mut Ui, full: egui::Rect) -> egui::Rect {
         #[cfg(windows)]
         {
-            use crate::winui::caption::{self, CAPTION_H, CaptionButton};
+            use crate::winui::caption::{self, CaptionButton};
             let want =
                 crate::theme::current().controls.caption != crate::palette::CaptionLook::System;
             if self.drawn_frame != Some(want)
@@ -8214,7 +8335,8 @@ impl App {
             if !want || self.drawn_frame != Some(true) {
                 return full;
             }
-            let rect = egui::Rect::from_min_size(full.min, egui::vec2(full.width(), CAPTION_H));
+            let cap_h = caption::caption_h();
+            let rect = egui::Rect::from_min_size(full.min, egui::vec2(full.width(), cap_h));
             if let Some(h) = self.main_hwnd {
                 let m = crate::win32::max_button_state(h);
                 caption::frame_maximize(m.hot, m.pressed);
@@ -8241,7 +8363,7 @@ impl App {
                 crate::win32::set_caption_hits(
                     h,
                     crate::win32::CaptionHits {
-                        strip_h: (CAPTION_H * ppp).round() as i32,
+                        strip_h: (cap_h * ppp).round() as i32,
                         icon: px(bar.icon),
                         buttons: bar.buttons.iter().map(|r| px(*r)).collect(),
                         max_button: Some(1),
@@ -8262,7 +8384,7 @@ impl App {
                 },
                 _ => {}
             }
-            egui::Rect::from_min_max(egui::pos2(full.min.x, full.min.y + CAPTION_H), full.max)
+            egui::Rect::from_min_max(egui::pos2(full.min.x, full.min.y + cap_h), full.max)
         }
         #[cfg(not(windows))]
         {
@@ -8385,7 +8507,7 @@ impl App {
             let x = chrome::menus(ui.painter())[i].1;
             let entries = self.menu_entries(i);
             // Under the item's leading edge (the menu's top-right in RTL).
-            let at = pos2(winui::mx(o.x + x), o.y + chrome::MENU_H - 1.0);
+            let at = pos2(winui::mx(o.x + x), o.y + chrome::menu_h() + if chrome::is_modern() { 6.0 } else { -1.0 });
             let event = match chrome::popup(
                 &ctx,
                 MenuKind::Bar,
@@ -8476,16 +8598,38 @@ impl App {
         }
 
         // Categories pane.
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let pad = if is_modern { 10.0 } else { 6.0 };
+        let gap = if is_modern { 10.0 } else { 4.0 };
+        let top_gap = if is_modern { 8.0 } else { 0.0 };
+        let bot_gap = if is_modern { 8.0 } else { 4.0 };
+
+        if is_modern {
+            let ws_bg = if crate::theme::dark() {
+                egui::Color32::from_rgb(15, 23, 42)
+            } else {
+                egui::Color32::from_rgb(241, 245, 249)
+            };
+            ui.painter().rect_filled(
+                egui::Rect::from_min_max(
+                    pos2(o.x, o.y + chrome::menu_h() + chrome::pane_top()),
+                    pos2(o.x + w, o.y + h - strip_h()),
+                ),
+                0.0,
+                ws_bg,
+            );
+        }
+
         let list_left = if self.show_categories {
             let rows = self.tree_rows();
             let tree: Vec<TreeRow<'_>> = rows.iter().map(|(r, ..)| r.clone()).collect();
             // The splitter: the 4 px gap between the pane and the list, dragged sideways.
             let max_w = (w * 0.6).max(100.0);
             let cat_w = (self.settings.categories_width as f32).clamp(100.0, max_w);
-            let right = o.x + 6.0 + cat_w;
+            let right = o.x + pad + cat_w;
             let split = winui::rect(egui::Rect::from_min_max(
-                pos2(right, o.y + chrome::MENU_H + chrome::pane_top()),
-                pos2(right + 4.0, o.y + h - STRIP_H - 5.0),
+                pos2(right, o.y + chrome::menu_h() + chrome::pane_top()),
+                pos2(right + gap, o.y + h - strip_h() - 5.0),
             ));
             let sr = ui.interact(
                 split,
@@ -8561,7 +8705,7 @@ impl App {
                 ui,
                 &mut self.icons,
                 o,
-                o.y + h - STRIP_H,
+                o.y + h - strip_h(),
                 right,
                 &tree,
                 self.tree_keys && free,
@@ -8586,11 +8730,14 @@ impl App {
                             self.open_popup(Popup::Node(node), at);
                         }
                     }
+                    TreeEvent::OpenSpeedSettings => {
+                        self.speed_settings = Some(dialogs::SpeedSettings::new(&self.settings));
+                    }
                 }
             }
-            6.0 + cat_w + 4.0
+            pad + cat_w + gap
         } else {
-            6.0
+            pad
         };
 
         // Download list.
@@ -8598,8 +8745,8 @@ impl App {
         self.selection.retain(&ids);
         let (selected, focus) = self.selection.rows(&ids);
         let outer = egui::Rect::from_min_max(
-            pos2(o.x + list_left, o.y + chrome::MENU_H + chrome::pane_top()),
-            pos2(o.x + w - 7.0, o.y + h - STRIP_H - 4.0),
+            pos2(o.x + list_left, o.y + chrome::menu_h() + chrome::pane_top() + top_gap),
+            pos2(o.x + w - pad, o.y + h - strip_h() - bot_gap),
         );
         self.list.menu_open = self.popup.is_some() || self.open_menu.is_some();
         // Another node shows from its top (its rows aren't the last one's).
@@ -9210,9 +9357,9 @@ impl App {
                     ctx,
                 );
             } else {
-                // A file MDM can't download or import (a picture, a program).
+                // A file Luna can't download or import (a picture, a program).
                 self.notice = Some((
-                    crate::i18n::mark("Mister Download Manager"),
+                    crate::i18n::mark("Luna Download Manager"),
                     crate::i18n::fmt(
                         crate::i18n::t(
                             "Nothing to download in {item}: drop links, a .torrent file, or a list of addresses (.txt, .ef2).",
@@ -10905,8 +11052,15 @@ impl App {
             }
         }
         crate::crash::step(crate::crash::Step::MainWindow);
+        let dark = crate::theme::dark();
+        let t_dark = ctx.animate_bool(egui::Id::unique("theme_dark_transition"), dark);
+        let win_bg = winui::caption::lerp_color(
+            crate::theme::current().palette(false).window,
+            crate::theme::current().palette(true).window,
+            t_dark,
+        );
         egui::CentralPanel::no_frame()
-            .frame(egui::Frame::new().fill(chrome::WINDOW_BG()))
+            .frame(egui::Frame::new().fill(win_bg))
             .show(ui, |ui| self.paint(ui));
         crate::crash::step(crate::crash::Step::Dialogs);
         self.dialogs(&ctx);

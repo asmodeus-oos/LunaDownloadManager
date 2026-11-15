@@ -1,12 +1,12 @@
-{
+﻿{
   "name": {
-    "message": "Mister Download Manager"
+    "message": "Luna Download Manager"
   },
   "description": {
-    "message": "Siirtää lataukset selaimesta Mister Download Manageriin."
+    "message": "Siirtää lataukset selaimesta Luna Download Manageriin."
   },
   "menu": {
-    "message": "Lataa Mister Download Managerilla"
+    "message": "Lataa Luna Download Managerilla"
   },
   "video_download": {
     "message": "Lataa video"
@@ -30,19 +30,19 @@
     "message": "Painikkeen asetukset..."
   },
   "video_sent": {
-    "message": "Lähetetty Mister Download Manager:lle"
+    "message": "Lähetetty Luna Download Manager:lle"
   },
   "menu_selected": {
-    "message": "Lataa valitut linkit sovelluksella Mister Download Manager"
+    "message": "Lataa valitut linkit sovelluksella Luna Download Manager"
   },
   "menu_all": {
-    "message": "Lataa kaikki linkit sovelluksella Mister Download Manager"
+    "message": "Lataa kaikki linkit sovelluksella Luna Download Manager"
   },
   "status_connected": {
-    "message": "Yhdistetty sovellukseen Mister Download Manager"
+    "message": "Yhdistetty sovellukseen Luna Download Manager"
   },
   "status_connected_version": {
-    "message": "Yhdistetty sovellukseen Mister Download Manager $version$",
+    "message": "Yhdistetty sovellukseen Luna Download Manager $version$",
     "placeholders": {
       "version": {
         "content": "$1",
@@ -54,22 +54,22 @@
     "message": "Ei käytössä: lataukset jäävät selaimeen"
   },
   "status_not_installed": {
-    "message": "Mister Download Manager ei ole asennettu, tai sen selainintegrointia ei ole määritetty"
+    "message": "Luna Download Manager ei ole asennettu, tai sen selainintegrointia ei ole määritetty"
   },
   "status_forbidden": {
-    "message": "Mister Download Manager ei hyväksy tätä laajennuksen kopiota"
+    "message": "Luna Download Manager ei hyväksy tätä laajennuksen kopiota"
   },
   "status_not_running": {
-    "message": "Mister Download Manager ei käynnistynyt ajoissa"
+    "message": "Luna Download Manager ei käynnistynyt ajoissa"
   },
   "status_host_failed": {
-    "message": "Yhteyden muodostaminen sovellukseen Mister Download Manager epäonnistui"
+    "message": "Yhteyden muodostaminen sovellukseen Luna Download Manager epäonnistui"
   },
   "status_too_large": {
     "message": "Tämän latauksen tiedot olivat liian suuria siirrettäviksi"
   },
   "status_update_app": {
-    "message": "Päivitä Mister Download Manager, jotta voit käyttää kaikkia tämän laajennuksen tarjoamia ominaisuuksia"
+    "message": "Päivitä Luna Download Manager, jotta voit käyttää kaikkia tämän laajennuksen tarjoamia ominaisuuksia"
   },
   "popup_take": {
     "message": "Latausten siirtäminen tästä selaimesta"
@@ -78,10 +78,10 @@
     "message": "Lähetä lataukset tämän selaimen välityspalvelimen tai VPN-laajennuksen kautta"
   },
   "popup_proxy_title": {
-    "message": "Tällöin Mister Download Manager lataa saman välityspalvelimen kautta kuin tämä selain. Selain pyytää kerran lupaa; tämän poistaminen käytöstä peruuttaa luvan."
+    "message": "Tällöin Luna Download Manager lataa saman välityspalvelimen kautta kuin tämä selain. Selain pyytää kerran lupaa; tämän poistaminen käytöstä peruuttaa luvan."
   },
   "popup_proxy_title_chromium": {
-    "message": "Mister Download Manager lataa tiedostot sitten tämän selaimen käyttämän välityspalvelimen kautta. Kun tämä asetus on pois päältä, laajennus ei lue selaimen välityspalvelimen asetuksia."
+    "message": "Luna Download Manager lataa tiedostot sitten tämän selaimen käyttämän välityspalvelimen kautta. Kun tämä asetus on pois päältä, laajennus ei lue selaimen välityspalvelimen asetuksia."
   },
   "popup_exclude_site": {
     "message": "Älä koskaan ota latauksia sivustolta $site$",
@@ -102,7 +102,7 @@
     }
   },
   "popup_open": {
-    "message": "Avaa Mister Download Manager"
+    "message": "Avaa Luna Download Manager"
   },
   "popup_options": {
     "message": "Asetukset..."
@@ -189,16 +189,16 @@
     "message": "Täällä ei ole ladattavaa videota"
   },
   "video_playlist": {
-    "message": "Videoluettelo: valitse videot sovelluksessa Mister Download Manager"
+    "message": "Videoluettelo: valitse videot sovelluksessa Luna Download Manager"
   },
   "video_no_ytdlp": {
-    "message": "Mister Download Manager tarvitsee yt-dlp:n tätä videota varten"
+    "message": "Luna Download Manager tarvitsee yt-dlp:n tätä videota varten"
   },
   "video_too_long": {
     "message": "Haku kesti liian kauan"
   },
   "video_busy": {
-    "message": "Mister Download Manager on varattu muiden videoiden takia"
+    "message": "Luna Download Manager on varattu muiden videoiden takia"
   },
   "video_queued": {
     "message": "Lisätty jonoon"
@@ -222,7 +222,7 @@
     "message": "Tämä tietokone"
   },
   "popup_send_remote": {
-    "message": "Toinen Mister Download Manager (palvelin)"
+    "message": "Toinen Luna Download Manager (palvelin)"
   },
   "popup_remote_code": {
     "message": "Pariliitoskoodi"
@@ -318,7 +318,7 @@
     "message": "Kaikki laadut ja tekstitykset..."
   },
   "video_failed": {
-    "message": "Mister Download Manager ei ole asennettu tai sitä ei käynnistetty"
+    "message": "Luna Download Manager ei ole asennettu tai sitä ei käynnistetty"
   },
   "video_download_best": {
     "message": "Lataa paras"

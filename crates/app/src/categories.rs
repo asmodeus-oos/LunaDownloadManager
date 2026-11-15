@@ -6,6 +6,8 @@
 
 use std::path::Path;
 
+use egui::{Color32, Rect, Stroke, pos2};
+
 use crate::dialogs::{Outcome, window};
 use crate::model::{BuiltinEdit, Category, CustomCategory};
 use crate::settings::Settings;
@@ -77,69 +79,79 @@ impl CategoryDialog {
             Target::Edit(c) => c.shown(),
             Target::New => String::new(),
         };
+        let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+        let dlg_size = if is_modern { [480.0, 240.0] } else { [420.0, 196.0] };
         let out = window(
             ctx,
             "category-edit",
             title,
-            [420.0, 196.0],
+            dlg_size,
             false,
             LIGHT_BG(),
             |ui, o| {
                 let p = ui.painter().clone();
+                let text_color = if is_modern { winui::TEXT() } else { LIGHT_TEXT() };
+                if is_modern {
+                    let dark = crate::theme::dark();
+                    let card_bg = if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE };
+                    let card_border = if dark { Color32::from_rgb(51, 65, 85) } else { Color32::from_rgb(226, 232, 240) };
+                    let card_rect = Rect::from_min_max(pos2(o.x + 8.0, o.y + 6.0), pos2(o.x + 472.0, o.y + 234.0));
+                    p.rect_filled(winui::rect(card_rect), 16.0, card_bg);
+                    p.rect_stroke(winui::rect(card_rect), 16.0, Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+                }
+
+                let label_x = if is_modern { o.x + 100.0 } else { o.x + 90.0 };
                 let label = |y: f32, s: &str| {
-                    winui::text_right(&p, o.x + 90.0, o.y + y, crate::i18n::t(s), LIGHT_TEXT())
+                    winui::text_right(&p, label_x, o.y + y, crate::i18n::t(s), text_color)
                 };
+                let input_x = if is_modern { 108.0 } else { 98.0 };
+                let input_w = if is_modern { 348.0 } else { 310.0 };
+                let input_h = if is_modern { 30.0 } else { 23.0 };
+
                 label(26.0, crate::i18n::mark("Name:"));
-                let name_box = winui::edit_light(
-                    ui,
-                    r(o, 98.0, 12.0, 310.0, 23.0),
-                    &mut self.name,
-                    !built_in,
-                    false,
-                );
+                let name_box = if is_modern {
+                    winui::edit(ui, r(o, input_x, 12.0, input_w, input_h), &mut self.name, !built_in, false)
+                } else {
+                    winui::edit_light(ui, r(o, input_x, 12.0, input_w, input_h), &mut self.name, !built_in, false)
+                };
                 // Opened, the keys are in Name (a new category is named first).
                 if !self.focused && !built_in {
                     name_box.request_focus();
                     self.focused = true;
                 }
-                label(57.0, crate::i18n::mark("File types:"));
-                winui::edit_light(
-                    ui,
-                    r(o, 98.0, 43.0, 310.0, 23.0),
-                    &mut self.types,
-                    !built_in,
-                    false,
-                );
+                label(if is_modern { 64.0 } else { 57.0 }, crate::i18n::mark("File types:"));
+                let _types_box = if is_modern {
+                    winui::edit(ui, r(o, input_x, 48.0, input_w, input_h), &mut self.types, !built_in, false)
+                } else {
+                    winui::edit_light(ui, r(o, input_x, 43.0, input_w, input_h), &mut self.types, !built_in, false)
+                };
                 winui::fit(
                     ui,
                     &p,
-                    o.x + 98.0,
-                    o.y + 80.0,
+                    o.x + input_x,
+                    o.y + if is_modern { 88.0 } else { 80.0 },
                     crate::i18n::t("Extensions separated by spaces, for example MP4 MKV R0*"),
                     LIGHT_DISABLED(),
-                    o.x + 408.0,
+                    o.x + input_x + input_w,
                     "category-types-hint",
                 );
-                label(112.0, crate::i18n::mark("Folder:"));
+                label(if is_modern { 122.0 } else { 112.0 }, crate::i18n::mark("Folder:"));
                 // Browse as wide as its label in this language (#192); the box ends 8 px before.
+                let right_bound = if is_modern { input_x + input_w } else { 408.0 };
                 let (browse_x, browse_w) =
-                    winui::buttons_to_right(&p, 408.0, 8.0, &[("Browse...", 73.0)], 160.0)[0];
-                winui::edit_light(
-                    ui,
-                    r(o, 98.0, 98.0, browse_x - 8.0 - 98.0, 23.0),
-                    &mut self.folder,
-                    true,
-                    false,
-                );
-                if winui::button_light(
-                    ui,
-                    r(o, browse_x, 99.0, browse_w, 21.0),
-                    "Browse...",
-                    ButtonKind::Normal,
-                    false,
-                )
-                .clicked()
-                {
+                    winui::buttons_to_right(&p, right_bound, 8.0, &[("Browse...", 73.0)], 160.0)[0];
+                let folder_y = if is_modern { 108.0 } else { 98.0 };
+                if is_modern {
+                    winui::edit(ui, r(o, input_x, folder_y, browse_x - 8.0 - input_x, input_h), &mut self.folder, true, false);
+                } else {
+                    winui::edit_light(ui, r(o, input_x, folder_y, browse_x - 8.0 - input_x, input_h), &mut self.folder, true, false);
+                }
+                let browse_clicked = if is_modern {
+                    winui::button(ui, r(o, browse_x, folder_y, browse_w, input_h), "Browse...", ButtonKind::Normal, false, None).clicked()
+                } else {
+                    winui::button_light(ui, r(o, browse_x, folder_y + 1.0, browse_w, 21.0), "Browse...", ButtonKind::Normal, false).clicked()
+                };
+                if browse_clicked {
                     // i18n: title of the folder picker of the category dialog
                     let title = crate::i18n::t("Category folder").to_owned();
                     // From the folder typed, when there is one.
@@ -170,41 +182,43 @@ impl CategoryDialog {
                     winui::fit(
                         ui,
                         &p,
-                        o.x + 98.0,
-                        o.y + 142.0,
+                        o.x + input_x,
+                        o.y + if is_modern { 152.0 } else { 142.0 },
                         e,
                         winui::ERROR(),
-                        o.x + 408.0,
+                        o.x + right_bound,
                         "category-taken",
                     );
                 }
                 let valid = built_in || (!name.is_empty() && !taken);
-                let ok = winui::button_light(
-                    ui,
-                    r(o, 254.0, 164.0, 73.0, 21.0),
-                    "OK",
-                    if valid {
-                        ButtonKind::Default
-                    } else {
-                        ButtonKind::Disabled
-                    },
-                    false,
-                );
-                // i18n: why OK is greyed in the category dialog
+                let btn_right = if is_modern { right_bound } else { 408.0 };
+                let [ok_at, cancel_at] = winui::buttons_to_right(
+                    &p,
+                    btn_right,
+                    8.0,
+                    &[("OK", 73.0), ("Cancel", 73.0)],
+                    140.0,
+                )[..] else {
+                    unreachable!("two buttons")
+                };
+                let btn_y = if is_modern { 190.0 } else { 164.0 };
+                let btn_h = if is_modern { 34.0 } else { 21.0 };
+                let ok = if is_modern {
+                    winui::button(ui, r(o, ok_at.0, btn_y, ok_at.1, btn_h), "OK", if valid { ButtonKind::Default } else { ButtonKind::Disabled }, false, None)
+                } else {
+                    winui::button_light(ui, r(o, ok_at.0, btn_y, ok_at.1, btn_h), "OK", if valid { ButtonKind::Default } else { ButtonKind::Disabled }, false)
+                };
                 let ok = winui::why_disabled(
                     ok,
                     name.is_empty() && !built_in,
                     "Type the category's name",
                 )
                 .clicked();
-                let cancel = winui::button_light(
-                    ui,
-                    r(o, 335.0, 164.0, 73.0, 21.0),
-                    "Cancel",
-                    ButtonKind::Normal,
-                    false,
-                )
-                .clicked();
+                let cancel = if is_modern {
+                    winui::button(ui, r(o, cancel_at.0, btn_y, cancel_at.1, btn_h), "Cancel", ButtonKind::Normal, false, None).clicked()
+                } else {
+                    winui::button_light(ui, r(o, cancel_at.0, btn_y, cancel_at.1, btn_h), "Cancel", ButtonKind::Normal, false).clicked()
+                };
                 if cancel || winui::escape_pressed(ui) {
                     Outcome::Closed
                 } else if valid && (ok || winui::enter_pressed(ui)) {

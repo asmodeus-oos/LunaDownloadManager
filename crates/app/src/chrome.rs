@@ -13,6 +13,35 @@ use crate::winui::{self, text_font, text_width_font};
 
 /// Height of our menu bar band incl. its #f0f0f0 bottom line (IDM: non-client y −20…−1).
 pub const MENU_H: f32 = 20.0;
+pub const MENU_MODERN_H: f32 = 46.0;
+
+pub fn is_modern() -> bool {
+    crate::theme::metrics().button_radius > 4.0
+}
+
+pub fn menu_h() -> f32 {
+    if is_modern() {
+        MENU_MODERN_H
+    } else {
+        MENU_H
+    }
+}
+
+pub fn slot_h() -> f32 {
+    if is_modern() {
+        34.0
+    } else {
+        22.0
+    }
+}
+
+pub fn sep_h() -> f32 {
+    if is_modern() {
+        12.0
+    } else {
+        9.0
+    }
+}
 
 const fn rgb(r: u8, g: u8, b: u8) -> Color32 {
     Color32::from_rgb(r, g, b)
@@ -180,6 +209,21 @@ pub fn menus(p: &egui::Painter) -> Vec<(&'static str, f32, f32, f32)> {
         .iter()
         .map(|(l, ..)| crate::i18n::tc("menubar", l))
         .collect();
+    if is_modern() {
+        let mut x = 12.0;
+        return translated
+            .into_iter()
+            .map(|label| {
+                let clean = plain(label).0;
+                let tw = text_width_font(p, winui::segoe(), &clean).ceil();
+                let w = (tw + 24.0).max(52.0);
+                let tx = x + (w - tw) / 2.0;
+                let item = (label, x, w, tx);
+                x += w + 6.0;
+                item
+            })
+            .collect();
+    }
     if translated
         .iter()
         .zip(table.iter())
@@ -205,36 +249,45 @@ pub fn menus(p: &egui::Painter) -> Vec<(&'static str, f32, f32, f32)> {
 /// moves to it from another open menu).
 pub fn menu_bar(ui: &mut Ui, o: Pos2, width: f32, open: Option<usize>) -> Option<MenuBarEvent> {
     let p = ui.painter().clone();
-    fill(
-        &p,
-        o.x,
-        o.y,
-        o.x + width - 1.0,
-        o.y + MENU_H - 2.0,
-        MENUBAR_BG(),
-    );
-    // The bar's last row (light: #f2f2f2; dark: the bar's own).
-    fill(
-        &p,
-        o.x,
-        o.y + MENU_H - 2.0,
-        o.x + width - 1.0,
-        o.y + MENU_H - 2.0,
-        MENUBAR_BOTTOM(),
-    );
-    fill(
-        &p,
-        o.x,
-        o.y + MENU_H - 1.0,
-        o.x + width - 1.0,
-        o.y + MENU_H - 1.0,
-        MENUBAR_LINE(),
-    );
+    let h = menu_h();
+    let modern = is_modern();
+    let dark = crate::theme::dark();
+    if modern {
+        let bar_bg = if dark {
+            Color32::from_rgb(15, 23, 42)
+        } else {
+            Color32::WHITE
+        };
+        fill(&p, o.x, o.y, o.x + width - 1.0, o.y + h - 1.0, bar_bg);
+    } else {
+        fill(
+            &p,
+            o.x,
+            o.y,
+            o.x + width - 1.0,
+            o.y + h - 2.0,
+            MENUBAR_BG(),
+        );
+        fill(
+            &p,
+            o.x,
+            o.y + h - 2.0,
+            o.x + width - 1.0,
+            o.y + h - 2.0,
+            MENUBAR_BOTTOM(),
+        );
+        fill(
+            &p,
+            o.x,
+            o.y + h - 1.0,
+            o.x + width - 1.0,
+            o.y + h - 1.0,
+            MENUBAR_LINE(),
+        );
+    }
     let mut hit = None;
-    // For screen readers and UI Automation (#113): a menu bar whose titles are menu items that
-    // open their menus (Click, as with the mouse).
     let bar = ui.interact(
-        winui::rect(Rect::from_min_size(o, vec2(width, MENU_H))),
+        winui::rect(Rect::from_min_size(o, vec2(width, h))),
         egui::Id::unique("menubar-node"),
         egui::Sense::hover(),
     );
@@ -242,33 +295,102 @@ pub fn menu_bar(ui: &mut Ui, o: Pos2, width: f32, open: Option<usize>) -> Option
     let titles_ui = ui.new_child(egui::UiBuilder::new().accessibility_parent(bar.id));
     let released = ui.input(|x| x.pointer.any_released());
     for (i, (label, x, w, tx)) in menus(&p).iter().enumerate() {
-        // From the leading edge: the first menu at the right in RTL.
-        let rc = winui::rect(Rect::from_min_size(o + vec2(*x, 0.0), vec2(*w, MENU_H)));
+        let rc = winui::rect(Rect::from_min_size(o + vec2(*x, 0.0), vec2(*w, h)));
         let resp = titles_ui.interact(rc, egui::Id::unique(("menubar", i)), winui::pointer_only());
         winui::expose(&resp, egui::Role::MenuItem, &plain(label).0, true, None);
         ui.ctx().accesskit_node_builder(resp.id, |n| {
             n.set_has_popup(egui::accesskit::HasPopup::Menu);
             n.set_expanded(open == Some(i));
         });
-        if open == Some(i) {
-            p.rect_filled(rc, 0.0, MENUBAR_OPEN());
-        } else if open.is_none() && resp.hovered() {
-            let hot = Rect::from_min_max(rc.min + vec2(0.0, 1.0), rc.max - vec2(0.0, 1.0));
-            p.rect_filled(hot, 0.0, MENUBAR_HOT());
+        if modern {
+            let btn_h = 32.0;
+            let btn_y = o.y + (h - btn_h) / 2.0;
+            let btn_rc = winui::rect(Rect::from_min_size(pos2(o.x + *x, btn_y), vec2(*w, btn_h)));
+            let (shown, letter) = plain(label);
+
+            let (btn_bg, text_color) = if open == Some(i) {
+                (
+                    if dark {
+                        Color32::from_rgba_unmultiplied(16, 185, 129, 45)
+                    } else {
+                        Color32::from_rgba_unmultiplied(16, 185, 129, 30)
+                    },
+                    if dark {
+                        Color32::from_rgb(52, 211, 153)
+                    } else {
+                        Color32::from_rgb(4, 120, 87)
+                    },
+                )
+            } else if resp.hovered() {
+                (
+                    if dark {
+                        Color32::from_white_alpha(22)
+                    } else {
+                        Color32::from_black_alpha(15)
+                    },
+                    if dark {
+                        Color32::from_rgb(248, 250, 252)
+                    } else {
+                        Color32::from_rgb(15, 23, 42)
+                    },
+                )
+            } else {
+                (
+                    Color32::TRANSPARENT,
+                    if dark {
+                        Color32::from_rgb(203, 213, 225)
+                    } else {
+                        Color32::from_rgb(51, 65, 85)
+                    },
+                )
+            };
+
+            if btn_bg != Color32::TRANSPARENT {
+                p.rect_filled(btn_rc, 8.0, btn_bg);
+                if open == Some(i) {
+                    p.rect_stroke(
+                        btn_rc,
+                        8.0,
+                        Stroke::new(1.0, if dark { Color32::from_rgba_unmultiplied(52, 211, 153, 90) } else { Color32::from_rgba_unmultiplied(16, 185, 129, 90) }),
+                        egui::StrokeKind::Inside,
+                    );
+                }
+            }
+            let text_baseline = btn_y + btn_h / 2.0 + 4.5;
+            let drawn = text_font(
+                &p,
+                winui::segoe(),
+                o.x + tx,
+                text_baseline,
+                &shown,
+                text_color,
+            );
+            if cues(ui.ctx()) {
+                let (x0, x1) =
+                    winui::char_span(&p, &winui::segoe(), &shown, letter.unwrap_or(0), drawn);
+                fill(&p, x0, text_baseline + 1.0, x1, text_baseline + 1.0, text_color);
+            }
+        } else {
+            let r = crate::theme::metrics().control_radius.min(6.0);
+            if open == Some(i) {
+                let fill_rc = if r > 0.0 { rc.shrink2(vec2(2.0, 1.0)) } else { rc };
+                p.rect_filled(fill_rc, r, MENUBAR_OPEN());
+            } else if open.is_none() && resp.hovered() {
+                let hot = if r > 0.0 {
+                    rc.shrink2(vec2(2.0, 1.0))
+                } else {
+                    Rect::from_min_max(rc.min + vec2(0.0, 1.0), rc.max - vec2(0.0, 1.0))
+                };
+                p.rect_filled(hot, r, MENUBAR_HOT());
+            }
+            let (shown, letter) = plain(label);
+            let drawn = text_font(&p, winui::segoe(), o.x + tx, o.y + 13.0, &shown, TEXT());
+            if cues(ui.ctx()) {
+                let (x0, x1) =
+                    winui::char_span(&p, &winui::segoe(), &shown, letter.unwrap_or(0), drawn);
+                fill(&p, x0, o.y + 15.0, x1, o.y + 15.0, TEXT());
+            }
         }
-        // The title without its "&", its access letter underlined (each language marks its
-        // own: French Tâches and Téléchargements both had T).
-        let (shown, letter) = plain(label);
-        let drawn = text_font(&p, winui::segoe(), o.x + tx, o.y + 13.0, &shown, TEXT());
-        // Dark mode always underlines mnemonics (1 px under the letter's advance); light mode
-        // follows the Windows rule: once the keyboard is in use (`cues`).
-        if cues(ui.ctx()) {
-            let (x0, x1) =
-                winui::char_span(&p, &winui::segoe(), &shown, letter.unwrap_or(0), drawn);
-            fill(&p, x0, o.y + 15.0, x1, o.y + 15.0, TEXT());
-        }
-        // A screen reader or UI Automation opens a title's menu with Expand (or Click) and
-        // shuts it with Collapse.
         let (expand, collapse) = ui.input(|x| {
             (
                 x.has_accesskit_action_request(resp.id, egui::accesskit::Action::Expand),
@@ -283,7 +405,6 @@ pub fn menu_bar(ui: &mut Ui, o: Pos2, width: f32, open: Option<usize>) -> Option
             hit = Some(MenuBarEvent::Hover(i));
         }
         if resp.clicked() || expand || collapse {
-            // No pointer moves to bring the next frame: the menu is drawn (or shut) on it.
             ui.ctx().request_repaint();
         }
     }
@@ -293,8 +414,9 @@ pub fn menu_bar(ui: &mut Ui, o: Pos2, width: f32, open: Option<usize>) -> Option
 /// The menu-bar title under `pos` (main-window coordinates), as [`menu_bar`] lays them out at
 /// `o`: the first menu at the right in RTL.
 pub fn menubar_title_at(p: &egui::Painter, o: Pos2, pos: Pos2) -> Option<usize> {
+    let h = menu_h();
     menus(p).iter().position(|(_, x, w, _)| {
-        winui::rect(Rect::from_min_size(o + vec2(*x, 0.0), vec2(*w, MENU_H))).contains(pos)
+        winui::rect(Rect::from_min_size(o + vec2(*x, 0.0), vec2(*w, h))).contains(pos)
     })
 }
 
@@ -376,8 +498,6 @@ pub fn label(text: &str) -> &'static str {
     l
 }
 
-const SLOT: f32 = 22.0;
-const SEP: f32 = 9.0;
 
 /// A menu title's access letter, lower case ("&Tasks": "t"; none marked: its first letter).
 pub fn menu_letter(label: &str) -> String {
@@ -919,6 +1039,388 @@ fn menu_width(p: &egui::Painter, label: &str) -> f32 {
 /// Size of a menu window: the check column (38), the widest label, then 30 to the edge (48 when an
 /// item opens a submenu: its arrow), slots of 22 (separators 9), 3 px top and bottom. Fitted to
 /// its texts, so they don't float in a wide window.
+fn paint_menu_icon(p: &egui::Painter, label: &str, c: Pos2, enabled: bool) {
+    let lower = label.to_lowercase();
+    let dark = crate::theme::dark();
+    let disabled_color = if dark {
+        Color32::from_rgb(100, 116, 139)
+    } else {
+        Color32::from_rgb(148, 163, 184)
+    };
+
+    let col = |r: u8, g: u8, b: u8| -> Color32 {
+        if enabled {
+            Color32::from_rgb(r, g, b)
+        } else {
+            disabled_color
+        }
+    };
+
+    if lower.contains("add new") || lower.contains("add url") {
+        let ic = col(16, 185, 129);
+        p.circle_stroke(c, 7.0, Stroke::new(1.6, ic));
+        p.line_segment([pos2(c.x - 3.5, c.y), pos2(c.x + 3.5, c.y)], Stroke::new(1.8, ic));
+        p.line_segment([pos2(c.x, c.y - 3.5), pos2(c.x, c.y + 3.5)], Stroke::new(1.8, ic));
+    } else if lower.contains("open torrent") {
+        let ic = col(99, 102, 241);
+        let doc = Rect::from_center_size(c, vec2(12.0, 14.0));
+        p.rect_stroke(doc, 2.5, Stroke::new(1.5, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x, c.y - 2.5), pos2(c.x, c.y + 2.5)], Stroke::new(1.5, ic));
+        p.line(vec![pos2(c.x - 2.5, c.y + 0.5), pos2(c.x, c.y + 3.0), pos2(c.x + 2.5, c.y + 0.5)], Stroke::new(1.5, ic));
+    } else if lower.contains("magnet") {
+        let ic = col(99, 102, 241);
+        p.line(
+            vec![
+                pos2(c.x - 4.5, c.y - 4.5),
+                pos2(c.x - 4.5, c.y + 1.0),
+                pos2(c.x - 2.5, c.y + 4.5),
+                pos2(c.x + 2.5, c.y + 4.5),
+                pos2(c.x + 4.5, c.y + 1.0),
+                pos2(c.x + 4.5, c.y - 4.5),
+            ],
+            Stroke::new(2.0, ic),
+        );
+        p.rect_filled(Rect::from_center_size(pos2(c.x - 4.5, c.y - 4.5), vec2(3.0, 2.0)), 0.5, ic);
+        p.rect_filled(Rect::from_center_size(pos2(c.x + 4.5, c.y - 4.5), vec2(3.0, 2.0)), 0.5, ic);
+    } else if lower.contains("torrent settings") || lower.contains("settings...") {
+        let ic = col(100, 116, 139);
+        p.line_segment([pos2(c.x - 3.5, c.y - 5.5), pos2(c.x - 3.5, c.y + 5.5)], Stroke::new(1.4, ic));
+        p.line_segment([pos2(c.x + 3.5, c.y - 5.5), pos2(c.x + 3.5, c.y + 5.5)], Stroke::new(1.4, ic));
+        p.circle_filled(pos2(c.x - 3.5, c.y - 1.5), 2.2, ic);
+        p.circle_filled(pos2(c.x + 3.5, c.y + 1.5), 2.2, ic);
+    } else if lower.contains("clipboard") {
+        let ic = col(2, 132, 199);
+        let board = Rect::from_center_size(pos2(c.x, c.y + 1.0), vec2(12.0, 13.0));
+        p.rect_stroke(board, 2.5, Stroke::new(1.5, ic), egui::StrokeKind::Inside);
+        p.rect_filled(Rect::from_center_size(pos2(c.x, c.y - 5.5), vec2(5.5, 3.0)), 1.0, ic);
+        p.line(vec![pos2(c.x - 3.0, c.y + 1.0), pos2(c.x - 1.0, c.y + 3.0), pos2(c.x + 3.0, c.y - 1.0)], Stroke::new(1.6, ic));
+    } else if lower.contains("batch") {
+        let ic = col(2, 132, 199);
+        p.rect_stroke(Rect::from_center_size(pos2(c.x + 2.5, c.y - 2.5), vec2(11.0, 11.0)), 2.5, Stroke::new(1.3, ic.gamma_multiply(0.6)), egui::StrokeKind::Inside);
+        p.rect_stroke(Rect::from_center_size(pos2(c.x - 2.0, c.y + 2.0), vec2(11.0, 11.0)), 2.5, Stroke::new(1.5, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x - 5.0, c.y + 2.0), pos2(c.x + 1.0, c.y + 2.0)], Stroke::new(1.5, ic));
+    } else if lower.contains("video") {
+        let ic = col(168, 85, 247);
+        p.rect_stroke(Rect::from_center_size(pos2(c.x - 2.5, c.y), vec2(10.0, 8.5)), 2.0, Stroke::new(1.5, ic), egui::StrokeKind::Inside);
+        p.add(egui::Shape::convex_polygon(
+            vec![pos2(c.x + 3.0, c.y - 2.0), pos2(c.x + 6.5, c.y - 4.5), pos2(c.x + 6.5, c.y + 4.5), pos2(c.x + 3.0, c.y + 2.0)],
+            ic,
+            Stroke::NONE,
+        ));
+    } else if lower.contains("link") {
+        let ic = col(13, 148, 136);
+        p.line(vec![pos2(c.x - 4.5, c.y + 2.5), pos2(c.x - 2.0, c.y), pos2(c.x, c.y - 2.0)], Stroke::new(2.0, ic));
+        p.line(vec![pos2(c.x, c.y + 2.0), pos2(c.x + 2.0, c.y), pos2(c.x + 4.5, c.y - 2.5)], Stroke::new(2.0, ic));
+    } else if lower.contains("rss") {
+        let ic = col(249, 115, 22);
+        p.circle_filled(pos2(c.x - 4.5, c.y + 4.5), 1.6, ic);
+        p.line(vec![pos2(c.x - 4.5, c.y + 0.5), pos2(c.x - 2.0, c.y + 1.5), pos2(c.x - 0.5, c.y + 4.5)], Stroke::new(1.6, ic));
+        p.line(vec![pos2(c.x - 4.5, c.y - 3.5), pos2(c.x + 1.0, c.y - 1.5), pos2(c.x + 3.5, c.y + 4.5)], Stroke::new(1.6, ic));
+    } else if lower.contains("drop target") || lower.contains("target") {
+        let ic = col(13, 148, 136);
+        p.circle_stroke(c, 6.5, Stroke::new(1.4, ic));
+        p.circle_stroke(c, 3.5, Stroke::new(1.4, ic));
+        p.circle_filled(c, 1.3, ic);
+    } else if lower.contains("export") {
+        let ic = col(124, 58, 237);
+        p.line(vec![pos2(c.x - 5.5, c.y + 1.5), pos2(c.x - 5.5, c.y + 5.5), pos2(c.x + 5.5, c.y + 5.5), pos2(c.x + 5.5, c.y + 1.5)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x, c.y + 2.5), pos2(c.x, c.y - 5.0)], Stroke::new(1.6, ic));
+        p.line(vec![pos2(c.x - 3.0, c.y - 2.0), pos2(c.x, c.y - 5.0), pos2(c.x + 3.0, c.y - 2.0)], Stroke::new(1.6, ic));
+    } else if lower.contains("import") {
+        let ic = col(71, 85, 105);
+        p.line(vec![pos2(c.x - 5.5, c.y + 1.5), pos2(c.x - 5.5, c.y + 5.5), pos2(c.x + 5.5, c.y + 5.5), pos2(c.x + 5.5, c.y + 1.5)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x, c.y - 5.0), pos2(c.x, c.y + 2.5)], Stroke::new(1.6, ic));
+        p.line(vec![pos2(c.x - 3.0, c.y - 0.5), pos2(c.x, c.y + 2.5), pos2(c.x + 3.0, c.y - 0.5)], Stroke::new(1.6, ic));
+    } else if lower.contains("exit") {
+        let ic = col(225, 29, 72);
+        p.line(vec![pos2(c.x + 1.0, c.y - 5.5), pos2(c.x - 4.5, c.y - 5.5), pos2(c.x - 4.5, c.y + 5.5), pos2(c.x + 1.0, c.y + 5.5)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x - 1.0, c.y), pos2(c.x + 5.5, c.y)], Stroke::new(1.6, ic));
+        p.line(vec![pos2(c.x + 3.0, c.y - 2.5), pos2(c.x + 5.5, c.y), pos2(c.x + 3.0, c.y + 2.5)], Stroke::new(1.6, ic));
+    } else if lower.contains("stop all") || lower.contains("pause all") {
+        let ic = col(234, 88, 12);
+        p.rect_filled(Rect::from_center_size(pos2(c.x - 2.5, c.y), vec2(2.5, 9.0)), 1.2, ic);
+        p.rect_filled(Rect::from_center_size(pos2(c.x + 2.5, c.y), vec2(2.5, 9.0)), 1.2, ic);
+    } else if lower.contains("stop") {
+        let ic = col(217, 119, 6);
+        p.circle_stroke(c, 6.5, Stroke::new(1.4, ic));
+        p.rect_filled(Rect::from_center_size(c, vec2(5.5, 5.5)), 1.2, ic);
+    } else if lower.contains("remove with files") || lower.contains("remove") || lower.contains("delete") {
+        let ic = col(225, 29, 72);
+        p.line_segment([pos2(c.x - 5.5, c.y - 3.5), pos2(c.x + 5.5, c.y - 3.5)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x - 2.0, c.y - 5.0), pos2(c.x + 2.0, c.y - 5.0)], Stroke::new(1.4, ic));
+        p.line(vec![pos2(c.x - 4.0, c.y - 3.5), pos2(c.x - 3.5, c.y + 5.0), pos2(c.x + 3.5, c.y + 5.0), pos2(c.x + 4.0, c.y - 3.5)], Stroke::new(1.4, ic));
+        p.line_segment([pos2(c.x, c.y - 1.5), pos2(c.x, c.y + 3.0)], Stroke::new(1.2, ic));
+    } else if lower.contains("download now") || lower.contains("start queue") || lower.contains("resume") {
+        let ic = col(16, 185, 129);
+        p.circle_stroke(c, 7.0, Stroke::new(1.4, ic));
+        let tri = vec![pos2(c.x - 2.0, c.y - 3.5), pos2(c.x + 3.5, c.y), pos2(c.x - 2.0, c.y + 3.5)];
+        p.add(egui::Shape::convex_polygon(tri, ic, Stroke::NONE));
+    } else if lower.contains("redownload") {
+        let ic = col(2, 132, 199);
+        p.circle_stroke(c, 5.5, Stroke::new(1.4, ic));
+        p.add(egui::Shape::convex_polygon(vec![pos2(c.x + 2.5, c.y - 6.5), pos2(c.x + 5.5, c.y - 4.5), pos2(c.x + 2.5, c.y - 2.5)], ic, Stroke::NONE));
+    } else if lower.contains("find") {
+        let ic = col(100, 116, 139);
+        p.circle_stroke(pos2(c.x - 1.8, c.y - 1.8), 4.5, Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x + 1.8, c.y + 1.8), pos2(c.x + 6.0, c.y + 6.0)], Stroke::new(2.0, ic));
+    } else if lower.contains("select all") {
+        let ic = col(16, 185, 129);
+        let sq = Rect::from_center_size(c, vec2(12.0, 12.0));
+        p.rect_stroke(sq, 2.5, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line(vec![pos2(c.x - 3.5, c.y), pos2(c.x - 1.0, c.y + 2.5), pos2(c.x + 3.5, c.y - 2.5)], Stroke::new(1.8, ic));
+    } else if lower.contains("scheduler") {
+        let ic = col(192, 38, 211);
+        p.circle_stroke(c, 6.5, Stroke::new(1.5, ic));
+        p.line_segment([c, pos2(c.x, c.y - 4.0)], Stroke::new(1.5, ic));
+        p.line_segment([c, pos2(c.x + 3.0, c.y)], Stroke::new(1.5, ic));
+    } else if lower.contains("speed limiter") || lower.contains("limiter") {
+        let ic = col(16, 185, 129);
+        p.circle_stroke(c, 6.5, Stroke::new(1.5, ic));
+        p.line_segment([c, pos2(c.x + 3.5, c.y - 3.5)], Stroke::new(2.0, ic));
+        p.circle_filled(c, 1.8, ic);
+    } else if lower.contains("options") || lower.contains("setting") {
+        let ic = col(100, 116, 139);
+        p.circle_stroke(c, 3.8, Stroke::new(1.8, ic));
+        for i in 0..6 {
+            let a = (i as f32) * std::f32::consts::PI / 3.0;
+            let (sa, ca) = a.sin_cos();
+            p.line_segment([pos2(c.x + ca * 3.8, c.y + sa * 3.8), pos2(c.x + ca * 6.5, c.y + sa * 6.5)], Stroke::new(1.8, ic));
+        }
+    } else if lower.contains("categories") || lower.contains("sidebar") {
+        let ic = col(100, 116, 139);
+        let frame = Rect::from_center_size(c, vec2(13.0, 12.0));
+        p.rect_stroke(frame, 2.5, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x - 2.0, c.y - 6.0), pos2(c.x - 2.0, c.y + 6.0)], Stroke::new(1.4, ic));
+    } else if lower.contains("dark") {
+        let ic = col(99, 102, 241);
+        p.circle_stroke(c, 5.5, Stroke::new(1.5, ic));
+        p.circle_filled(pos2(c.x + 2.2, c.y - 1.8), 4.5, if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE });
+    } else if lower.contains("language") {
+        let ic = col(2, 132, 199);
+        p.circle_stroke(c, 6.0, Stroke::new(1.4, ic));
+        p.line_segment([pos2(c.x - 6.0, c.y), pos2(c.x + 6.0, c.y)], Stroke::new(1.2, ic));
+        p.line(vec![pos2(c.x, c.y - 6.0), pos2(c.x - 2.5, c.y), pos2(c.x, c.y + 6.0), pos2(c.x + 2.5, c.y), pos2(c.x, c.y - 6.0)], Stroke::new(1.2, ic));
+    } else if lower.contains("help") || lower.contains("tutorial") || lower.contains("shortcut") || lower.contains("content") || lower.contains("readme") || lower.contains("about") {
+        let ic = col(2, 132, 199);
+        p.circle_stroke(c, 6.5, Stroke::new(1.4, ic));
+        p.circle_filled(pos2(c.x, c.y - 2.8), 1.1, ic);
+        p.line_segment([pos2(c.x, c.y - 0.5), pos2(c.x, c.y + 3.0)], Stroke::new(1.5, ic));
+    } else if lower.contains("open folder") || lower.contains("browse") {
+        let ic = col(245, 158, 11);
+        let fld = Rect::from_center_size(pos2(c.x, c.y + 1.0), vec2(13.0, 9.5));
+        p.rect_stroke(fld, 1.5, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x - 6.5, c.y - 3.5), pos2(c.x - 2.0, c.y - 3.5)], Stroke::new(1.4, ic));
+    } else if lower.contains("open with") {
+        let ic = col(2, 132, 199);
+        let win = Rect::from_center_size(pos2(c.x - 1.5, c.y + 1.5), vec2(10.0, 9.0));
+        p.rect_stroke(win, 1.5, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x - 0.5, c.y + 0.5), pos2(c.x + 5.5, c.y - 5.5)], Stroke::new(1.6, ic));
+        p.line(vec![pos2(c.x + 2.0, c.y - 5.5), pos2(c.x + 5.5, c.y - 5.5), pos2(c.x + 5.5, c.y - 2.0)], Stroke::new(1.6, ic));
+    } else if lower == "open" || (lower.starts_with("open") && !lower.contains("torrent")) {
+        let ic = col(2, 132, 199);
+        let doc = Rect::from_center_size(c, vec2(11.0, 13.0));
+        p.rect_stroke(doc, 2.0, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x - 1.0, c.y + 1.0), pos2(c.x + 4.5, c.y - 4.5)], Stroke::new(1.6, ic));
+        p.line(vec![pos2(c.x + 1.5, c.y - 4.5), pos2(c.x + 4.5, c.y - 4.5), pos2(c.x + 4.5, c.y - 1.5)], Stroke::new(1.6, ic));
+    } else if lower.contains("move") || lower.contains("rename") {
+        let ic = col(168, 85, 247);
+        p.line_segment([pos2(c.x - 4.5, c.y + 4.5), pos2(c.x + 3.5, c.y - 3.5)], Stroke::new(2.2, ic));
+        p.line_segment([pos2(c.x + 2.0, c.y - 5.0), pos2(c.x + 5.0, c.y - 2.0)], Stroke::new(1.6, ic));
+        p.circle_filled(pos2(c.x - 4.5, c.y + 4.5), 1.2, ic);
+    } else if lower.contains("refresh") {
+        let ic = col(16, 185, 129);
+        p.circle_stroke(c, 5.5, Stroke::new(1.5, ic));
+        p.add(egui::Shape::convex_polygon(vec![pos2(c.x + 2.5, c.y - 6.5), pos2(c.x + 5.5, c.y - 4.5), pos2(c.x + 2.5, c.y - 2.5)], ic, Stroke::NONE));
+        p.add(egui::Shape::convex_polygon(vec![pos2(c.x - 2.5, c.y + 6.5), pos2(c.x - 5.5, c.y + 4.5), pos2(c.x - 2.5, c.y + 2.5)], ic, Stroke::NONE));
+    } else if lower.contains("checksum") || lower.contains("verify") {
+        let ic = col(5, 150, 105);
+        p.line(vec![pos2(c.x - 5.5, c.y - 4.0), pos2(c.x + 5.5, c.y - 4.0), pos2(c.x + 5.5, c.y), pos2(c.x, c.y + 5.5), pos2(c.x - 5.5, c.y), pos2(c.x - 5.5, c.y - 4.0)], Stroke::new(1.4, ic));
+        p.line(vec![pos2(c.x - 2.5, c.y), pos2(c.x - 0.5, c.y + 2.0), pos2(c.x + 2.5, c.y - 1.5)], Stroke::new(1.6, ic));
+    } else if lower.contains("extract") {
+        let ic = col(217, 119, 6);
+        let box_r = Rect::from_center_size(pos2(c.x, c.y + 1.0), vec2(12.0, 10.0));
+        p.rect_stroke(box_r, 1.5, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x, c.y + 1.0), pos2(c.x, c.y - 4.5)], Stroke::new(1.6, ic));
+        p.line(vec![pos2(c.x - 2.5, c.y - 2.5), pos2(c.x, c.y - 4.5), pos2(c.x + 2.5, c.y - 2.5)], Stroke::new(1.6, ic));
+    } else if lower.contains("queue") {
+        let ic = col(99, 102, 241);
+        p.line_segment([pos2(c.x - 5.5, c.y - 3.5), pos2(c.x + 5.5, c.y - 3.5)], Stroke::new(1.8, ic));
+        p.line_segment([pos2(c.x - 5.5, c.y), pos2(c.x + 5.5, c.y)], Stroke::new(1.8, ic));
+        p.line_segment([pos2(c.x - 5.5, c.y + 3.5), pos2(c.x + 5.5, c.y + 3.5)], Stroke::new(1.8, ic));
+    } else if lower.contains("properties") {
+        let ic = col(100, 116, 139);
+        p.circle_stroke(c, 6.5, Stroke::new(1.4, ic));
+        p.circle_filled(pos2(c.x, c.y - 2.5), 1.1, ic);
+        p.line_segment([pos2(c.x, c.y - 0.5), pos2(c.x, c.y + 3.0)], Stroke::new(1.6, ic));
+    } else if lower.contains("files...") {
+        let ic = col(100, 116, 139);
+        p.rect_stroke(Rect::from_center_size(pos2(c.x + 2.0, c.y - 2.0), vec2(9.0, 11.0)), 1.5, Stroke::new(1.2, ic.gamma_multiply(0.6)), egui::StrokeKind::Inside);
+        p.rect_stroke(Rect::from_center_size(pos2(c.x - 1.5, c.y + 1.5), vec2(9.0, 11.0)), 1.5, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+    } else if lower.contains("recheck") {
+        let ic = col(2, 132, 199);
+        p.rect_stroke(Rect::from_center_size(c, vec2(11.0, 13.0)), 2.0, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line(vec![pos2(c.x - 3.0, c.y), pos2(c.x - 1.0, c.y + 2.0), pos2(c.x + 3.0, c.y - 2.0)], Stroke::new(1.6, ic));
+    } else if lower.contains("reannounce") {
+        let ic = col(6, 182, 212);
+        p.circle_filled(pos2(c.x, c.y + 3.0), 1.5, ic);
+        p.line_segment([pos2(c.x, c.y + 3.0), pos2(c.x, c.y - 3.0)], Stroke::new(1.5, ic));
+        p.line(vec![pos2(c.x - 4.5, c.y - 1.5), pos2(c.x, c.y - 4.5), pos2(c.x + 4.5, c.y - 1.5)], Stroke::new(1.4, ic));
+    } else if lower.contains("tracker") {
+        let ic = col(6, 182, 212);
+        p.line_segment([pos2(c.x - 3.0, c.y + 4.0), pos2(c.x - 3.0, c.y - 3.0)], Stroke::new(1.5, ic));
+        p.circle_filled(pos2(c.x - 3.0, c.y - 3.0), 1.6, ic);
+        p.line_segment([pos2(c.x + 1.5, c.y), pos2(c.x + 6.0, c.y)], Stroke::new(1.6, ic));
+        p.line_segment([pos2(c.x + 3.75, c.y - 2.25), pos2(c.x + 3.75, c.y + 2.25)], Stroke::new(1.6, ic));
+    } else if lower.contains("order") || lower.contains("pieces first") {
+        let ic = col(139, 92, 246);
+        p.line_segment([pos2(c.x - 4.5, c.y - 4.0), pos2(c.x + 4.5, c.y - 4.0)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x - 4.5, c.y), pos2(c.x + 2.0, c.y)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x - 4.5, c.y + 4.0), pos2(c.x - 1.0, c.y + 4.0)], Stroke::new(1.5, ic));
+        p.line(vec![pos2(c.x + 2.0, c.y + 1.5), pos2(c.x + 4.5, c.y + 4.0), pos2(c.x + 2.0, c.y + 6.5)], Stroke::new(1.4, ic));
+    } else if lower.contains("add category") {
+        let ic = col(16, 185, 129);
+        let fld = Rect::from_center_size(pos2(c.x - 1.0, c.y + 1.0), vec2(11.0, 8.5));
+        p.rect_stroke(fld, 1.5, Stroke::new(1.3, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x + 2.0, c.y - 1.0), pos2(c.x + 6.0, c.y - 1.0)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x + 4.0, c.y - 3.0), pos2(c.x + 4.0, c.y + 1.0)], Stroke::new(1.5, ic));
+    } else if lower.contains("filter") {
+        let ic = col(239, 68, 68);
+        p.line(vec![pos2(c.x - 5.5, c.y - 4.5), pos2(c.x + 5.5, c.y - 4.5), pos2(c.x + 1.5, c.y), pos2(c.x + 1.5, c.y + 4.5), pos2(c.x - 1.5, c.y + 3.0), pos2(c.x - 1.5, c.y), pos2(c.x - 5.5, c.y - 4.5)], Stroke::new(1.4, ic));
+    } else if lower.contains("arrange") || lower.contains("sort") {
+        let ic = col(100, 116, 139);
+        p.line_segment([pos2(c.x - 2.5, c.y - 4.5), pos2(c.x - 2.5, c.y + 4.5)], Stroke::new(1.5, ic));
+        p.line(vec![pos2(c.x - 4.5, c.y - 2.5), pos2(c.x - 2.5, c.y - 4.5), pos2(c.x - 0.5, c.y - 2.5)], Stroke::new(1.4, ic));
+        p.line_segment([pos2(c.x + 2.5, c.y - 4.5), pos2(c.x + 2.5, c.y + 4.5)], Stroke::new(1.5, ic));
+        p.line(vec![pos2(c.x + 0.5, c.y + 2.5), pos2(c.x + 2.5, c.y + 4.5), pos2(c.x + 4.5, c.y + 2.5)], Stroke::new(1.4, ic));
+    } else if lower == "undo" {
+        let ic = col(2, 132, 199);
+        p.line(vec![pos2(c.x - 1.5, c.y - 4.5), pos2(c.x - 4.5, c.y - 2.0), pos2(c.x - 1.5, c.y + 0.5)], Stroke::new(1.5, ic));
+        p.line(vec![pos2(c.x - 4.5, c.y - 2.0), pos2(c.x + 2.0, c.y - 2.0), pos2(c.x + 4.5, c.y + 1.0), pos2(c.x + 4.5, c.y + 4.0)], Stroke::new(1.5, ic));
+    } else if lower == "cut" {
+        let ic = col(225, 29, 72);
+        p.circle_stroke(pos2(c.x - 3.5, c.y + 3.0), 2.2, Stroke::new(1.3, ic));
+        p.circle_stroke(pos2(c.x + 3.5, c.y + 3.0), 2.2, Stroke::new(1.3, ic));
+        p.line_segment([pos2(c.x - 2.5, c.y + 1.5), pos2(c.x + 4.0, c.y - 4.5)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x + 2.5, c.y + 1.5), pos2(c.x - 4.0, c.y - 4.5)], Stroke::new(1.5, ic));
+    } else if lower == "copy" {
+        let ic = col(2, 132, 199);
+        p.rect_stroke(Rect::from_center_size(pos2(c.x + 2.0, c.y - 2.0), vec2(9.0, 11.0)), 1.5, Stroke::new(1.2, ic.gamma_multiply(0.6)), egui::StrokeKind::Inside);
+        p.rect_stroke(Rect::from_center_size(pos2(c.x - 1.5, c.y + 1.5), vec2(9.0, 11.0)), 1.5, Stroke::new(1.5, ic), egui::StrokeKind::Inside);
+    } else if lower == "paste" {
+        let ic = col(16, 185, 129);
+        let bd = Rect::from_center_size(pos2(c.x, c.y + 1.0), vec2(11.0, 12.0));
+        p.rect_stroke(bd, 1.8, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.rect_filled(Rect::from_center_size(pos2(c.x, c.y - 5.0), vec2(5.0, 2.5)), 0.8, ic);
+        p.line_segment([pos2(c.x - 2.5, c.y + 1.0), pos2(c.x + 2.5, c.y + 1.0)], Stroke::new(1.2, ic));
+        p.line_segment([pos2(c.x - 2.5, c.y + 3.5), pos2(c.x + 2.5, c.y + 3.5)], Stroke::new(1.2, ic));
+    } else if lower.contains("site") {
+        let ic = col(2, 132, 199);
+        p.circle_stroke(c, 6.0, Stroke::new(1.4, ic));
+        p.line_segment([pos2(c.x - 6.0, c.y), pos2(c.x + 6.0, c.y)], Stroke::new(1.2, ic));
+        p.line(vec![pos2(c.x - 2.5, c.y - 5.5), pos2(c.x, c.y), pos2(c.x - 2.5, c.y + 5.5)], Stroke::new(1.2, ic));
+        p.line(vec![pos2(c.x + 2.5, c.y - 5.5), pos2(c.x, c.y), pos2(c.x + 2.5, c.y + 5.5)], Stroke::new(1.2, ic));
+    } else if lower.contains("interface size") || lower.contains("size") {
+        let ic = col(100, 116, 139);
+        p.rect_stroke(Rect::from_center_size(c, vec2(12.0, 12.0)), 2.0, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x - 2.0, c.y + 2.0), pos2(c.x + 3.5, c.y - 3.5)], Stroke::new(1.5, ic));
+    } else if lower.contains("text") || lower.contains("smooth") {
+        let ic = col(100, 116, 139);
+        p.line(vec![pos2(c.x - 4.5, c.y + 5.0), pos2(c.x, c.y - 5.0), pos2(c.x + 4.5, c.y + 5.0)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x - 2.5, c.y + 1.5), pos2(c.x + 2.5, c.y + 1.5)], Stroke::new(1.5, ic));
+    } else if lower.contains("draw with") {
+        let ic = col(139, 92, 246);
+        p.circle_stroke(c, 6.0, Stroke::new(1.4, ic));
+        p.circle_filled(pos2(c.x - 2.5, c.y - 2.0), 1.2, ic);
+        p.circle_filled(pos2(c.x + 2.0, c.y - 2.5), 1.2, ic);
+        p.circle_filled(pos2(c.x + 2.5, c.y + 1.5), 1.2, ic);
+    } else if lower.contains("toolbar") {
+        let ic = col(100, 116, 139);
+        p.rect_stroke(Rect::from_center_size(c, vec2(13.0, 8.0)), 1.5, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x - 2.0, c.y - 4.0), pos2(c.x - 2.0, c.y + 4.0)], Stroke::new(1.2, ic));
+        p.line_segment([pos2(c.x + 2.0, c.y - 4.0), pos2(c.x + 2.0, c.y + 4.0)], Stroke::new(1.2, ic));
+    } else if lower.contains("status") {
+        let ic = col(16, 185, 129);
+        p.circle_stroke(c, 6.0, Stroke::new(1.8, ic));
+        p.circle_filled(c, 2.5, ic);
+    } else if lower.contains("time left") || lower.contains("last try") || lower.contains("date") || lower.contains("added") || lower.contains("finished") {
+        let ic = col(100, 116, 139);
+        p.circle_stroke(c, 6.0, Stroke::new(1.4, ic));
+        p.line_segment([c, pos2(c.x, c.y - 3.5)], Stroke::new(1.4, ic));
+        p.line_segment([c, pos2(c.x + 2.5, c.y)], Stroke::new(1.4, ic));
+    } else if lower.contains("speed") || lower.contains("transfer rate") {
+        let ic = col(245, 158, 11);
+        p.line(vec![pos2(c.x + 1.0, c.y - 5.5), pos2(c.x - 3.5, c.y), pos2(c.x, c.y), pos2(c.x - 1.0, c.y + 5.5), pos2(c.x + 3.5, c.y), pos2(c.x, c.y), pos2(c.x + 1.0, c.y - 5.5)], Stroke::new(1.4, ic));
+    } else if lower.contains("name") || lower.contains("description") {
+        let ic = col(100, 116, 139);
+        p.rect_stroke(Rect::from_center_size(c, vec2(11.0, 13.0)), 2.0, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x - 3.0, c.y - 2.0), pos2(c.x + 3.0, c.y - 2.0)], Stroke::new(1.2, ic));
+        p.line_segment([pos2(c.x - 3.0, c.y + 1.5), pos2(c.x + 1.0, c.y + 1.5)], Stroke::new(1.2, ic));
+    } else if lower.contains("reset columns") {
+        let ic = col(2, 132, 199);
+        let sq = Rect::from_center_size(c, vec2(12.0, 10.0));
+        p.rect_stroke(sq, 1.5, Stroke::new(1.3, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x - 2.0, c.y - 5.0), pos2(c.x - 2.0, c.y + 5.0)], Stroke::new(1.2, ic));
+        p.line_segment([pos2(c.x + 2.0, c.y - 5.0), pos2(c.x + 2.0, c.y + 5.0)], Stroke::new(1.2, ic));
+    } else if lower.contains("clear all filters") || lower.contains("clear filters") {
+        let ic = col(239, 68, 68);
+        p.line(vec![pos2(c.x - 5.0, c.y - 4.5), pos2(c.x + 5.0, c.y - 4.5), pos2(c.x + 1.5, c.y), pos2(c.x + 1.5, c.y + 4.5), pos2(c.x - 1.5, c.y + 3.0), pos2(c.x - 1.5, c.y), pos2(c.x - 5.0, c.y - 4.5)], Stroke::new(1.3, ic));
+        p.line_segment([pos2(c.x + 2.0, c.y + 2.0), pos2(c.x + 5.5, c.y + 5.5)], Stroke::new(1.5, ic));
+        p.line_segment([pos2(c.x + 5.5, c.y + 2.0), pos2(c.x + 2.0, c.y + 5.5)], Stroke::new(1.5, ic));
+    } else if lower.contains("tell a friend") || lower.contains("friend") {
+        let ic = col(16, 185, 129);
+        p.circle_stroke(pos2(c.x - 2.5, c.y - 2.0), 3.0, Stroke::new(1.4, ic));
+        p.circle_stroke(pos2(c.x + 3.5, c.y - 2.0), 2.5, Stroke::new(1.2, ic));
+        p.line(vec![pos2(c.x - 5.5, c.y + 4.5), pos2(c.x - 2.5, c.y + 1.5), pos2(c.x + 0.5, c.y + 4.5)], Stroke::new(1.4, ic));
+        p.line(vec![pos2(c.x + 1.0, c.y + 4.5), pos2(c.x + 3.5, c.y + 2.0), pos2(c.x + 6.0, c.y + 4.5)], Stroke::new(1.2, ic));
+    } else if lower.contains("support") || lower.contains("sponsor") {
+        let ic = col(225, 29, 72);
+        p.line(vec![pos2(c.x, c.y + 4.5), pos2(c.x - 4.5, c.y), pos2(c.x - 4.5, c.y - 2.5), pos2(c.x - 2.0, c.y - 4.0), pos2(c.x, c.y - 2.0), pos2(c.x + 2.0, c.y - 4.0), pos2(c.x + 4.5, c.y - 2.5), pos2(c.x + 4.5, c.y), pos2(c.x, c.y + 4.5)], Stroke::new(1.5, ic));
+    } else if lower.contains("report a problem") || lower.contains("report") {
+        let ic = col(234, 88, 12);
+        p.circle_stroke(c, 6.0, Stroke::new(1.4, ic));
+        p.line_segment([pos2(c.x, c.y - 3.0), pos2(c.x, c.y + 1.0)], Stroke::new(1.6, ic));
+        p.circle_filled(pos2(c.x, c.y + 3.2), 1.0, ic);
+    } else if lower.contains("update") {
+        let ic = col(2, 132, 199);
+        p.circle_stroke(c, 5.5, Stroke::new(1.4, ic));
+        p.line_segment([pos2(c.x, c.y + 2.0), pos2(c.x, c.y - 3.5)], Stroke::new(1.5, ic));
+        p.line(vec![pos2(c.x - 2.5, c.y - 1.0), pos2(c.x, c.y - 3.5), pos2(c.x + 2.5, c.y - 1.0)], Stroke::new(1.5, ic));
+    } else if lower.contains("edit queue") {
+        let ic = col(168, 85, 247);
+        p.line_segment([pos2(c.x - 5.5, c.y - 3.0), pos2(c.x + 2.0, c.y - 3.0)], Stroke::new(1.6, ic));
+        p.line_segment([pos2(c.x - 5.5, c.y + 1.0), pos2(c.x + 1.0, c.y + 1.0)], Stroke::new(1.6, ic));
+        p.line_segment([pos2(c.x - 5.5, c.y + 4.0), pos2(c.x - 1.0, c.y + 4.0)], Stroke::new(1.6, ic));
+        p.line_segment([pos2(c.x + 2.0, c.y + 5.0), pos2(c.x + 5.5, c.y + 1.5)], Stroke::new(1.6, ic));
+    } else if lower.contains("delete from queue") || lower.contains("remove from queue") {
+        let ic = col(225, 29, 72);
+        p.line_segment([pos2(c.x - 5.5, c.y - 3.0), pos2(c.x + 1.0, c.y - 3.0)], Stroke::new(1.6, ic));
+        p.line_segment([pos2(c.x - 5.5, c.y + 1.0), pos2(c.x + 1.0, c.y + 1.0)], Stroke::new(1.6, ic));
+        p.line_segment([pos2(c.x + 2.5, c.y - 0.5), pos2(c.x + 5.5, c.y + 2.5)], Stroke::new(1.6, ic));
+        p.line_segment([pos2(c.x + 5.5, c.y - 0.5), pos2(c.x + 2.5, c.y + 2.5)], Stroke::new(1.6, ic));
+    } else if lower.contains("luna") || lower.contains("mister") || lower.contains("download manager") {
+        let ic = col(2, 132, 199);
+        p.circle_stroke(c, 6.0, Stroke::new(1.5, ic));
+        p.circle_filled(pos2(c.x + 2.2, c.y - 1.8), 4.8, if dark { Color32::from_rgb(30, 41, 59) } else { Color32::WHITE });
+    } else if lower.contains("double click") {
+        let ic = col(100, 116, 139);
+        p.rect_stroke(Rect::from_center_size(c, vec2(9.0, 13.0)), 3.5, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        p.line_segment([pos2(c.x, c.y - 5.0), pos2(c.x, c.y - 1.5)], Stroke::new(1.4, ic));
+    } else if lower.contains("turn on") || lower.contains("turn of") {
+        let ic = if lower.contains("on") { col(16, 185, 129) } else { col(100, 116, 139) };
+        p.rect_stroke(Rect::from_center_size(c, vec2(13.0, 8.0)), 4.0, Stroke::new(1.4, ic), egui::StrokeKind::Inside);
+        let knob_x = if lower.contains("on") { c.x + 2.5 } else { c.x - 2.5 };
+        p.circle_filled(pos2(knob_x, c.y), 2.5, ic);
+    } else if lower.contains("theme") {
+        let ic = col(168, 85, 247);
+        p.circle_stroke(c, 6.0, Stroke::new(1.4, ic));
+        p.circle_filled(pos2(c.x - 2.5, c.y - 2.0), 1.2, col(239, 68, 68));
+        p.circle_filled(pos2(c.x + 2.0, c.y - 2.5), 1.2, col(16, 185, 129));
+        p.circle_filled(pos2(c.x + 2.5, c.y + 1.5), 1.2, col(2, 132, 199));
+    } else {
+        // No icon: draw nothing (never draw a stray dot)
+    }
+}
+
 fn menu_size<C>(
     ctx: &egui::Context,
     entries: &[MenuEntry<C>],
@@ -941,18 +1443,25 @@ fn menu_size<C>(
             MenuEntry::Sep => None,
         })
         .fold(0.0, f32::max);
+    let sh = slot_h();
+    let sph = sep_h();
     let h: f32 = entries
         .iter()
         .map(|e| {
             if matches!(e, MenuEntry::Sep) {
-                SEP
+                sph
             } else {
-                SLOT
+                sh
             }
         })
         .sum();
     let has_sub = entries.iter().any(|e| matches!(e, MenuEntry::Sub(..)));
-    vec2(38.0 + widest + if has_sub { 48.0 } else { 30.0 }, h + 6.0)
+    if is_modern() {
+        let base_w = (widest + if has_sub { 80.0 } else { 68.0 }).max(250.0);
+        vec2(base_w, h + 12.0)
+    } else {
+        vec2(38.0 + widest + if has_sub { 48.0 } else { 30.0 }, h + 6.0)
+    }
 }
 
 /// How a borderless window of ours looks and takes the pointer ([`style_popup`]).
@@ -1098,17 +1607,19 @@ fn menu_viewport(kind: MenuKind, id: &str, depth: usize, bar_shared: bool) -> eg
 /// The entry under `p` in a menu drawn at `o`, `w` wide: its index, none on a separator or the
 /// padding (the slots as `popup_level` lays them out).
 fn item_at<C>(entries: &[MenuEntry<C>], o: Pos2, w: f32, p: Pos2) -> Option<usize> {
-    let mut y = o.y + 3.0;
+    let sh = slot_h();
+    let sph = sep_h();
+    let mut y = o.y + if is_modern() { 6.0 } else { 3.0 };
     for (i, e) in entries.iter().enumerate() {
         if matches!(e, MenuEntry::Sep) {
-            y += SEP;
+            y += sph;
             continue;
         }
-        let slot = Rect::from_min_max(pos2(o.x + 6.0, y), pos2(o.x + w - 6.0, y + SLOT));
+        let slot = Rect::from_min_max(pos2(o.x + 6.0, y), pos2(o.x + w - 6.0, y + sh));
         if slot.contains(p) {
             return Some(i);
         }
-        y += SLOT;
+        y += sh;
     }
     None
 }
@@ -1154,7 +1665,7 @@ fn popup_level<C: Clone>(
         // Where the submenu is, for its menu's next pass (`heading_into`, #579).
         ctx.data_mut(|d| d.insert_temp(sub_key.with("sub-rect"), screen));
     }
-    let title = format!("misterdownloadmanager menu {depth}"); // not translated: an id
+    let title = format!("lunadownloadmanager menu {depth}"); // not translated: an id
     let builder = popup_viewport(&title)
         .with_active(false)
         .with_position(screen.min)
@@ -1206,15 +1717,33 @@ fn popup_level<C: Clone>(
         // arrow on the left pointing left.
         let _surface = winui::Surface::enter(o.x, o.x + w);
         let rtl = winui::rtl();
-        // Body; Windows 11 rounds the window and draws the border and shadow (style_popup).
-        fill(
-            &painter,
-            o.x,
-            o.y,
-            o.x + w - 1.0,
-            o.y + size.y - 1.0,
-            POPUP_BG(),
-        );
+        let modern = is_modern();
+        let dark = crate::theme::dark();
+        if modern {
+            let bg = if dark {
+                Color32::from_rgb(30, 41, 59)
+            } else {
+                Color32::WHITE
+            };
+            let border_c = if dark {
+                Color32::from_rgb(51, 65, 85)
+            } else {
+                Color32::from_rgb(226, 232, 240)
+            };
+            let full_rect = Rect::from_min_size(o, size);
+            // Fill entire client area cleanly so DWM handles corner clipping with no black corner artifacts
+            painter.rect_filled(full_rect, 0.0, bg);
+            painter.rect_stroke(full_rect, 0.0, Stroke::new(1.0, border_c), egui::StrokeKind::Inside);
+        } else {
+            fill(
+                &painter,
+                o.x,
+                o.y,
+                o.x + w - 1.0,
+                o.y + size.y - 1.0,
+                POPUP_BG(),
+            );
+        }
         // Where the pointer is, or was on this pass: a tap on a touch screen ends with the pointer
         // gone (egui-winit lets go of it as the finger lifts, so nothing stays lit), in the very
         // pass that releases it, where the hover position is none and no item was chosen (#733).
@@ -1247,18 +1776,33 @@ fn popup_level<C: Clone>(
         );
         winui::expose(&menu_node, egui::Role::Menu, "", true, None);
         let items_ui = ui.new_child(egui::UiBuilder::new().accessibility_parent(menu_node.id));
-        let mut y = o.y + 3.0;
+        let sh = slot_h();
+        let sph = sep_h();
+        let mut y = o.y + if modern { 6.0 } else { 3.0 };
         for (i, e) in entries.iter().enumerate() {
             if matches!(e, MenuEntry::Sep) {
-                winui::fill_l(
-                    &painter,
-                    o.x + 9.0,
-                    y + 4.0,
-                    o.x + w - 10.0,
-                    y + 4.0,
-                    POPUP_SEP(),
-                );
-                y += SEP;
+                if modern {
+                    let sep_y = y + sph / 2.0;
+                    let sep_color = if dark {
+                        Color32::from_rgb(51, 65, 85)
+                    } else {
+                        Color32::from_rgb(226, 232, 240)
+                    };
+                    painter.line_segment(
+                        [pos2(o.x + 12.0, sep_y), pos2(o.x + w - 12.0, sep_y)],
+                        Stroke::new(1.0, sep_color),
+                    );
+                } else {
+                    winui::fill_l(
+                        &painter,
+                        o.x + 9.0,
+                        y + 4.0,
+                        o.x + w - 10.0,
+                        y + 4.0,
+                        POPUP_SEP(),
+                    );
+                }
+                y += sph;
                 continue;
             }
             let (label, enabled, checked) = match e {
@@ -1266,7 +1810,7 @@ fn popup_level<C: Clone>(
                 MenuEntry::Sub(l, en, _) => (*l, *en, false),
                 MenuEntry::Sep => unreachable!(),
             };
-            let slot = Rect::from_min_max(pos2(o.x + 6.0, y), pos2(o.x + w - 6.0, y + SLOT));
+            let slot = Rect::from_min_max(pos2(o.x + 6.0, y), pos2(o.x + w - 6.0, y + sh));
             let hovered = pointer.is_some_and(|p| slot.contains(p));
             if hovered && moving && kb.is_some() && kb != Some(i) {
                 ui.ctx().data_mut(|d| {
@@ -1287,32 +1831,46 @@ fn popup_level<C: Clone>(
                 Some(k) => k == i,
                 None => hovered,
             };
-            // An open submenu's entry stays lit while the pointer is on it, in the submenu or
-            // off this menu; not while it is on another item, which is the lit one then (#579).
             let opened = open_sub == Some(i) && under.is_none_or(|u| u == i);
-            if lit || opened {
+            if modern {
+                if lit || opened {
+                    let hover_c = if dark {
+                        Color32::from_rgb(51, 65, 85)
+                    } else {
+                        Color32::from_rgb(241, 245, 249)
+                    };
+                    painter.rect_filled(slot, 8.0, hover_c);
+                }
+            } else if lit || opened {
                 painter.rect_filled(
                     slot,
                     crate::theme::metrics().menu_item_radius,
                     POPUP_HOVER(),
                 );
             } else {
-                // Spec: an item's normal background is one level lighter than the padding.
                 fill(
                     &painter,
                     slot.left(),
                     y,
                     slot.right() - 1.0,
-                    y + SLOT - 1.0,
+                    y + sh - 1.0,
                     POPUP_ITEM(),
                 );
             }
-            let color = if enabled {
+
+            let color = if modern {
+                if !enabled {
+                    if dark { Color32::from_rgb(100, 116, 139) } else { Color32::from_rgb(148, 163, 184) }
+                } else if dark {
+                    Color32::from_rgb(241, 245, 249)
+                } else {
+                    Color32::from_rgb(51, 65, 85)
+                }
+            } else if enabled {
                 TEXT()
             } else {
                 TEXT_DISABLED_MENU()
             };
-            // Bullets, check marks and arrows (light mode: dark cores, not pure black).
             let glyph = if enabled {
                 GLYPH()
             } else {
@@ -1328,8 +1886,6 @@ fn popup_level<C: Clone>(
             } else {
                 t
             };
-            // The entry's node: a menu item (a check or radio item when it is one), its name,
-            // whether it can be used, and for a submenu that it opens one.
             let item = items_ui.interact(
                 slot,
                 egui::Id::unique(("menu-item", id, depth, i)),
@@ -1348,9 +1904,6 @@ fn popup_level<C: Clone>(
                     n.set_expanded(open);
                 });
             }
-            // Invoked by a screen reader or UI Automation (a real click is the pointer's,
-            // below): an item is chosen, a submenu opens.
-            // (A submenu's entry is opened with Expand too, its pattern being Expand / Collapse.)
             let expand_sub = matches!(e, MenuEntry::Sub(..))
                 && ui.input(|x| {
                     x.has_accesskit_action_request(item.id, egui::accesskit::Action::Expand)
@@ -1370,29 +1923,93 @@ fn popup_level<C: Clone>(
                 }
                 _ => {}
             }
-            let drawn = text_font(&painter, winui::segoe(), o.x + 38.0, y + 14.0, &t, color);
-            // The shortcut at the trailing edge, in the menu's quieter ink.
+
+            let text_baseline = y + if modern { (sh - 13.0) / 2.0 + 10.0 } else { 14.0 };
+            let text_x = if modern { o.x + 42.0 } else { o.x + 38.0 };
+            let drawn = text_font(&painter, winui::segoe(), text_x, text_baseline, &t, color);
+
+            // Paint modern icon or radio indicator
+            if modern {
+                if matches!(e, MenuEntry::Radio(..)) {
+                    let radio_c = if checked {
+                        Color32::from_rgb(16, 185, 129)
+                    } else if dark {
+                        Color32::from_rgb(71, 85, 105)
+                    } else {
+                        Color32::from_rgb(203, 213, 225)
+                    };
+                    let center = pos2(o.x + 22.0, y + sh / 2.0);
+                    painter.circle_stroke(center, 5.5, Stroke::new(1.4, radio_c));
+                    if checked {
+                        painter.circle_filled(center, 2.8, Color32::from_rgb(16, 185, 129));
+                    }
+                } else {
+                    paint_menu_icon(&painter, &t, pos2(o.x + 22.0, y + sh / 2.0), enabled);
+                }
+            }
+
+            // The shortcut at the trailing edge
             if let Some(k) = keys {
-                winui::text_right(
-                    &painter,
-                    o.x + w - 24.0,
-                    y + 14.0,
-                    &key_label(k),
-                    TEXT_DISABLED_MENU(),
-                );
+                let kl = key_label(k);
+                if modern {
+                    let kw = text_width_font(&painter, winui::segoe(), &kl).ceil();
+                    let pill_rect = Rect::from_center_size(
+                        pos2(o.x + w - 20.0 - kw / 2.0, y + sh / 2.0),
+                        vec2(kw + 10.0, 18.0),
+                    );
+                    let pill_bg = if dark {
+                        Color32::from_rgb(51, 65, 85)
+                    } else {
+                        Color32::from_rgb(241, 245, 249)
+                    };
+                    let pill_text = if dark {
+                        Color32::from_rgb(148, 163, 184)
+                    } else {
+                        Color32::from_rgb(100, 116, 139)
+                    };
+                    painter.rect_filled(pill_rect, 4.0, pill_bg);
+                    text_font(
+                        &painter,
+                        winui::segoe(),
+                        pill_rect.min.x + 5.0,
+                        pill_rect.min.y + 13.0,
+                        &kl,
+                        pill_text,
+                    );
+                } else {
+                    winui::text_right(
+                        &painter,
+                        o.x + w - 24.0,
+                        y + 14.0,
+                        &kl,
+                        TEXT_DISABLED_MENU(),
+                    );
+                }
             }
-            // Underlined mnemonics: always in dark mode, once the keyboard is in use in light.
-            if let Some(m) = mn
-                && cues(ctx)
-            {
+
+            // Underlined mnemonics
+            if let Some(m) = mn && cues(ctx) {
                 let (x0, x1) = winui::char_span(&painter, &winui::segoe(), &t, m, drawn);
-                fill(&painter, x0, y + 16.0, x1, y + 16.0, color);
+                fill(&painter, x0, text_baseline + 2.0, x1, text_baseline + 2.0, color);
             }
-            // The check box column: x 12..21 from the leading edge (the glyphs keep their
-            // shape).
+
+            // Checkmarks
             let gx = |x: f32| if rtl { x + w - 33.0 } else { x };
-            if checked && matches!(e, MenuEntry::Radio(..)) {
-                // Measured 4×4 bullet at rel x 15..18, slot rows 9..12 (ink over #2c).
+            if modern {
+                if checked && !matches!(e, MenuEntry::Radio(..)) {
+                    let emerald = Color32::from_rgb(5, 150, 105);
+                    let check_x = o.x + w - 20.0;
+                    let check_y = y + sh / 2.0;
+                    painter.line(
+                        vec![
+                            pos2(check_x - 5.0, check_y),
+                            pos2(check_x - 2.0, check_y + 3.5),
+                            pos2(check_x + 4.0, check_y - 3.5),
+                        ],
+                        Stroke::new(1.8, emerald),
+                    );
+                }
+            } else if checked && matches!(e, MenuEntry::Radio(..)) {
                 const BULLET: [[u8; 4]; 4] = [
                     [0x54, 0xca, 0xd7, 0x54],
                     [0xd7, 0xff, 0xff, 0xca],
@@ -1416,17 +2033,40 @@ fn popup_level<C: Clone>(
                     Stroke::new(1.3, glyph),
                 );
             }
+
             match e {
                 MenuEntry::Sub(..) => {
-                    // At the trailing edge, pointing where the submenu opens.
-                    painter.line(
-                        vec![
-                            pos2(winui::mx(o.x + w - 20.5), y + 7.5),
-                            pos2(winui::mx(o.x + w - 16.5), y + 11.5),
-                            pos2(winui::mx(o.x + w - 20.5), y + 15.5),
-                        ],
-                        Stroke::new(1.2, glyph),
-                    );
+                    let chev_y = y + if modern { sh / 2.0 } else { 11.5 };
+                    if modern {
+                        let cx = winui::mx(o.x + w - 20.0);
+                        let cy = chev_y;
+                        let btn_rect = Rect::from_center_size(pos2(cx, cy), vec2(20.0, 20.0));
+                        let (btn_bg, border_c, glyph_c) = if hovered {
+                            if dark {
+                                (Color32::from_rgb(71, 85, 105), Color32::from_rgb(100, 116, 139), Color32::WHITE)
+                            } else {
+                                (Color32::from_rgb(203, 213, 225), Color32::from_rgb(148, 163, 184), Color32::from_rgb(15, 23, 42))
+                            }
+                        } else if dark {
+                            (Color32::from_rgb(51, 65, 85), Color32::from_rgb(71, 85, 105), Color32::from_rgb(226, 232, 240))
+                        } else {
+                            (Color32::from_rgb(226, 232, 240), Color32::from_rgb(203, 213, 225), Color32::from_rgb(71, 85, 105))
+                        };
+                        painter.rect_filled(winui::rect(btn_rect), 5.0, btn_bg);
+                        painter.rect_stroke(winui::rect(btn_rect), 5.0, Stroke::new(1.0, border_c), egui::StrokeKind::Inside);
+                        let stroke = Stroke::new(1.6, glyph_c);
+                        painter.line_segment([pos2(cx - 2.0, cy - 3.5), pos2(cx + 1.5, cy)], stroke);
+                        painter.line_segment([pos2(cx + 1.5, cy), pos2(cx - 2.0, cy + 3.5)], stroke);
+                    } else {
+                        painter.line(
+                            vec![
+                                pos2(winui::mx(o.x + w - 20.5), chev_y - 4.0),
+                                pos2(winui::mx(o.x + w - 16.5), chev_y),
+                                pos2(winui::mx(o.x + w - 20.5), chev_y + 4.0),
+                            ],
+                            Stroke::new(1.2, glyph),
+                        );
+                    }
                     if depth == 0 && enabled && hovered && (kb.is_none() || moving) {
                         ui.ctx().data_mut(|d| d.insert_temp(sub_key, i));
                     }
@@ -1441,9 +2081,6 @@ fn popup_level<C: Clone>(
                     }
                 }
                 MenuEntry::Item(_, c, ..) | MenuEntry::Radio(_, c, ..) => {
-                    // The pointer on another item of the root closes an open submenu at once
-                    // (#579), unless it is crossing the item on its way into the submenu
-                    // (diagonally): then after Windows' menu delay, if it rests there.
                     let since_key = sub_key.with(("leave-since", i));
                     if depth == 0 && hovered && open_sub.is_some() {
                         let now = ui.input(|inp| inp.time);
@@ -1464,8 +2101,6 @@ fn popup_level<C: Clone>(
                             });
                             sub_at = None;
                         } else {
-                            // The window that draws the menus (this one is drawn in its pass):
-                            // a pointer resting on the item brings no event to close it by.
                             ui.ctx().request_repaint_after_for(
                                 std::time::Duration::from_millis(60),
                                 parent_vid,
@@ -1480,7 +2115,7 @@ fn popup_level<C: Clone>(
                 }
                 MenuEntry::Sep => {}
             }
-            y += SLOT;
+            y += sh;
         }
     });
     if styled {
@@ -1526,6 +2161,8 @@ pub fn pane_top() -> f32 {
     70.0
 }
 
+
+
 pub fn toolbar(
     ui: &mut Ui,
     o: Pos2,
@@ -1533,26 +2170,79 @@ pub fn toolbar(
     buttons: &[(Icon, &str, bool)],
 ) -> Option<ToolbarEvent> {
     let p = ui.painter().clone();
-    let top = o.y + MENU_H;
+    let top = o.y + menu_h();
     let c = crate::theme::colors();
-    fill(&p, o.x, top, o.x + width - 1.0, top, c.toolbar_line);
-    fill(
-        &p,
-        o.x,
-        top + 1.0,
-        o.x + width - 1.0,
-        top + 1.0,
-        c.toolbar_line_light,
+    let is_modern = crate::theme::metrics().button_radius > 4.0;
+    if !is_modern {
+        fill(&p, o.x, top, o.x + width - 1.0, top, c.toolbar_line);
+        fill(
+            &p,
+            o.x,
+            top + 1.0,
+            o.x + width - 1.0,
+            top + 1.0,
+            c.toolbar_line_light,
+        );
+    }
+    // Both modes (light-main.md; dark changes only colours): Segoe labels when modern, Tahoma when classic.
+    let (font, base_w, band_h) = if is_modern {
+        (winui::segoe(), 66.0f32, 68.0)
+    } else {
+        (winui::tahoma(), 66.0f32, 68.0)
+    };
+    let band = Rect::from_min_size(pos2(o.x, top + if is_modern { 0.0 } else { 2.0 }), vec2(width, band_h));
+    let dark = crate::theme::dark();
+    let t_dark = ui.ctx().animate_bool(egui::Id::unique("theme_dark_transition"), dark);
+    let band_bg = winui::caption::lerp_color(
+        crate::theme::current().palette(false).window,
+        crate::theme::current().palette(true).window,
+        t_dark,
     );
-    // Both modes (light-main.md; dark changes only colours): Tahoma labels, 66 px buttons, a
-    // 68 px band.
-    let (font, base_w, band_h) = (winui::tahoma(), 66.0f32, 68.0);
-    let band = Rect::from_min_size(pos2(o.x, top + 2.0), vec2(width, band_h));
-    p.rect_filled(band, 0.0, WINDOW_BG());
-    let mut x = o.x;
-    let mut event = None;
+    p.rect_filled(band, 0.0, band_bg);
     let is_dropdown =
         |icon: &Icon| matches!(icon, Icon::StartQueue | Icon::StopQueue | Icon::AddTorrent);
+    let mut total_needed = 0.0f32;
+    for (icon, label, _) in buttons {
+        let full = crate::i18n::tc("toolbar", label);
+        let full_ext = text_width_font(&p, font.clone(), full).round();
+        let bw = base_w.max(full_ext + 12.0);
+        let total = bw + if is_dropdown(icon) { 15.0 } else { 0.0 };
+        total_needed += total;
+        if is_modern && matches!(icon, Icon::AddTorrent | Icon::StopAll | Icon::DeleteCompleted | Icon::Scheduler) {
+            total_needed += 8.0;
+        }
+    }
+
+    let scroll_id = egui::Id::unique("tb-scroll-offset");
+    let mut scroll_offset: f32 = ui.ctx().data(|d| d.get_temp(scroll_id)).unwrap_or(0.0);
+    let nav_btn_w = 28.0;
+    let overflow = is_modern && total_needed > width;
+    let max_scroll = if overflow {
+        (total_needed - width + nav_btn_w * 2.0 + 8.0).max(0.0)
+    } else {
+        0.0
+    };
+    if overflow && ui.rect_contains_pointer(winui::rect(band)) {
+        let delta = ui.input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y);
+        if delta.abs() > 0.0 {
+            scroll_offset = (scroll_offset - delta).clamp(0.0, max_scroll);
+            ui.ctx().data_mut(|d| d.insert_temp(scroll_id, scroll_offset));
+            ui.ctx().request_repaint();
+        }
+    }
+    scroll_offset = if overflow { scroll_offset.clamp(0.0, max_scroll) } else { 0.0 };
+
+    let show_left = overflow && scroll_offset > 2.0;
+    let show_right = overflow && scroll_offset < max_scroll - 2.0;
+
+    let left_bound = if show_left { o.x + nav_btn_w + 6.0 } else { o.x };
+    let right_bound = if show_right { o.x + width - nav_btn_w - 6.0 } else { o.x + width };
+    let content_clip = Rect::from_min_max(pos2(left_bound, band.top()), pos2(right_bound, band.bottom()));
+    let tp = if overflow { p.with_clip_rect(winui::rect(content_clip)) } else { p.clone() };
+
+    let mut x = o.x + if show_left { nav_btn_w + 6.0 } else { 0.0 } - scroll_offset;
+    let mut event = None;
+
     // A toolbar wider than the window (long translations): the longest labels give way first,
     // cut with "..." and whole on hover, so every button stays on screen.
     let natural: Vec<(f32, f32)> = buttons
@@ -1562,15 +2252,15 @@ pub fn toolbar(
             (ext, if is_dropdown(icon) { 15.0 } else { 0.0 })
         })
         .collect();
-    let cap = label_cap(&natural, base_w, width);
+    let cap = if overflow { f32::INFINITY } else { label_cap(&natural, base_w, width) };
     for (i, (icon, label, enabled)) in buttons.iter().enumerate() {
         let full = crate::i18n::tc("toolbar", label);
         let dropdown = is_dropdown(icon);
         // IDM's buttons are 66 px; ours grow only when a full label needs it (user
         // decision), up to the cap that keeps the toolbar inside the window.
         let full_ext = text_width_font(&p, font.clone(), full).round();
-        let bw = base_w.max((full_ext + 12.0).min(cap));
-        let cut = full_ext + 12.0 > bw;
+        let bw = if overflow { base_w.max(full_ext + 12.0) } else { base_w.max((full_ext + 12.0).min(cap)) };
+        let cut = !overflow && full_ext + 12.0 > bw;
         let shown = if cut {
             winui::ellipsize(&p, &font, full, bw - 12.0)
         } else {
@@ -1585,80 +2275,94 @@ pub fn toolbar(
             pos2(x, band.top()),
             vec2(total, band_h),
         ));
-        let resp = ui.interact(rc, egui::Id::unique(("tb", i)), winui::pointer_only());
+        let btn_interactable = !overflow || (rc.right() >= left_bound && rc.left() <= right_bound);
+        let resp = if btn_interactable {
+            ui.interact(rc, egui::Id::unique(("tb", i)), winui::pointer_only())
+        } else {
+            ui.interact(Rect::NOTHING, egui::Id::unique(("tb", i)), winui::pointer_only())
+        };
         let resp = if cut { resp.on_hover_text(full) } else { resp };
         let past_button = |q: Pos2| winui::mx(q.x) >= x + bw;
+        let on_arrow = dropdown && resp.hover_pos().is_some_and(past_button);
         if *enabled && resp.hovered() {
-            // Hover (IDM 6.42, captured 2026-10-30): the button's own width, from the band's top,
-            // square. Dark: a flat #33414d. Light: Windows' hot button, #e5f3ff with a 1 px
-            // #cce8ff border. As much room under the label as above the icon (user request
-            // 2026-11-01: IDM's 61 px left the label on the bottom edge): 65 tall, inside the
-            // band. Beyond IDM (which lights only the button part, user
-            // request 2026-10-29): a drop-down is a split button — the part under the pointer is
-            // lit (pressed while the mouse is down), the other part faintly, a 1 px divider between.
-            let h = 65.0;
-            let (hot_c, faint_c, down_c, edge_c, border_c) = (
-                c.toolbar_hot,
-                c.toolbar_hot_faint,
-                c.toolbar_pressed,
-                c.toolbar_hot_edge,
-                c.toolbar_hot_border,
-            );
-            let on_arrow = dropdown && resp.hover_pos().is_some_and(past_button);
-            let down = resp.is_pointer_button_down_on();
-            let main = winui::rect(Rect::from_min_size(pos2(x, band.top()), vec2(bw, h)));
-            // The arrow part starts on the button's last column: their borders share one line.
-            let arrow = winui::rect(Rect::from_min_size(
-                pos2(x + bw - 1.0, band.top()),
-                vec2(total - bw + 1.0, h),
-            ));
-            let lit = |r: Rect, under: bool| {
-                let c = match (under, down) {
-                    (true, true) => down_c,
-                    (true, false) => hot_c,
-                    (false, _) => faint_c,
+            if is_modern {
+                let card = winui::rect(Rect::from_min_max(
+                    pos2(x + 2.0, band.top() + 3.0),
+                    pos2(x + total - 2.0, band.top() + band_h - 3.0),
+                ));
+                let (bg, border) = if resp.is_pointer_button_down_on() {
+                    if crate::theme::dark() {
+                        (Color32::from_rgb(40, 53, 72), Color32::from_rgb(71, 85, 105))
+                    } else {
+                        (Color32::from_rgb(226, 232, 240), Color32::from_rgb(203, 213, 225))
+                    }
+                } else if crate::theme::dark() {
+                    (Color32::from_rgb(51, 65, 85), Color32::from_rgb(71, 85, 105))
+                } else {
+                    (Color32::from_rgb(241, 245, 249), Color32::from_rgb(203, 213, 225))
                 };
-                p.rect_filled(r, 0.0, c);
-                // None in the dark look (a transparent border isn't drawn).
-                p.rect_stroke(
-                    r,
-                    0.0,
-                    egui::Stroke::new(1.0, border_c),
-                    egui::StrokeKind::Inside,
+                tp.rect_filled(card, 12.0, bg);
+                tp.rect_stroke(card, 12.0, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
+            } else {
+                let h = 65.0;
+                let (hot_c, faint_c, down_c, edge_c, border_c) = (
+                    c.toolbar_hot,
+                    c.toolbar_hot_faint,
+                    c.toolbar_pressed,
+                    c.toolbar_hot_edge,
+                    c.toolbar_hot_border,
                 );
-            };
-            lit(main, !on_arrow);
-            if dropdown {
-                lit(arrow, on_arrow);
-                // The divider: the parts' shared edge, one line.
-                winui::fill_l(
-                    &p,
-                    x + bw - 1.0,
-                    band.top(),
-                    x + bw - 1.0,
-                    band.top() + h - 1.0,
-                    edge_c,
-                );
+                let down = resp.is_pointer_button_down_on();
+                let main = winui::rect(Rect::from_min_size(pos2(x, band.top()), vec2(bw, h)));
+                let arrow = winui::rect(Rect::from_min_size(
+                    pos2(x + bw - 1.0, band.top()),
+                    vec2(total - bw + 1.0, h),
+                ));
+                let lit = |r: Rect, under: bool| {
+                    let col = match (under, down) {
+                        (true, true) => down_c,
+                        (true, false) => hot_c,
+                        (false, _) => faint_c,
+                    };
+                    p.rect_filled(r, 0.0, col);
+                    p.rect_stroke(
+                        r,
+                        0.0,
+                        egui::Stroke::new(1.0, border_c),
+                        egui::StrokeKind::Inside,
+                    );
+                };
+                lit(main, !on_arrow);
+                if dropdown {
+                    lit(arrow, on_arrow);
+                    winui::fill_l(
+                        &p,
+                        x + bw - 1.0,
+                        band.top(),
+                        x + bw - 1.0,
+                        band.top() + h - 1.0,
+                        edge_c,
+                    );
+                }
             }
         }
         let cx = x + bw / 2.0;
-        let icon_rect = Rect::from_min_size(
-            pos2(cx - 16.0, top + 9.5 + 20.0 - 20.0 + 0.0),
-            vec2(32.0, 32.0),
-        )
-        .translate(vec2(0.0, 0.0));
-        let icon_rect = Rect::from_center_size(pos2(cx, top + 25.5), icon_rect.size());
+        let icon_sz = if is_modern { vec2(24.0, 24.0) } else { vec2(32.0, 32.0) };
+        let icon_rect = Rect::from_center_size(pos2(cx, top + if is_modern { 24.0 } else { 25.5 }), icon_sz);
+        // Monochromatic glyph: background badge completely removed per modern Fluent UI specification
         // Placed, not mirrored: an icon keeps its look.
-        icon.image(*enabled).paint_at(ui, winui::rect(icon_rect));
+        if !overflow || (icon_rect.right() >= left_bound && icon_rect.left() <= right_bound) {
+            icon.image(*enabled).paint_at(ui, winui::rect(icon_rect));
+        }
         // Label: x = btn.x + floor((w − ext)/2), +1 for drop-downs, last ink row 58. Every label
         // on one line (IDM draws the drop-downs' 1 px lower: in one row it read as a mistake).
         let mut lx = x + ((bw - ext) / 2.0).floor();
         if dropdown {
             lx += 1.0;
         }
-        let ly = top + 58.0;
+        let ly = top + if is_modern { 55.0 } else { 58.0 };
         text_font(
-            &p,
+            &tp,
             font.clone(),
             lx,
             ly,
@@ -1666,26 +2370,42 @@ pub fn toolbar(
             if *enabled { TEXT() } else { TB_DISABLED() },
         );
         if dropdown {
-            let ax = x + bw + 4.0;
+            let ax = x + bw + 1.0;
             let ay = top + 31.0;
-            // The split's divider at rest (user choice 2026-10-29, "B"): a classic etched
-            // toolbar separator — a shadow line and a highlight beside it — 24 px tall, centred
-            // on the arrow; the hover draws the full divider instead.
-            if !(*enabled && resp.hovered()) {
-                let (shadow, light) = (c.toolbar_split_shadow, c.toolbar_split_light);
-                let (y0, y1) = (ay - 10.0, ay + 13.0);
-                winui::fill_l(&p, x + bw - 1.0, y0, x + bw - 1.0, y1, shadow);
-                winui::fill_l(&p, x + bw, y0, x + bw, y1, light);
-            }
-            for (row, half) in [3.0f32, 2.0, 1.0, 0.0].iter().enumerate() {
-                winui::fill_l(
-                    &p,
-                    ax + 3.0 - half,
-                    ay + row as f32,
-                    ax + 3.0 + half,
-                    ay + row as f32,
-                    TB_ARROW(),
-                );
+            if is_modern {
+                let glyph_c = if on_arrow {
+                    if crate::theme::dark() {
+                        Color32::WHITE
+                    } else {
+                        Color32::from_rgb(15, 23, 42)
+                    }
+                } else if crate::theme::dark() {
+                    Color32::from_rgb(148, 163, 184)
+                } else {
+                    Color32::from_rgb(100, 116, 139)
+                };
+                let cx = x + bw + 7.5;
+                let cy = ay + 3.0;
+                let stroke = Stroke::new(1.5, glyph_c);
+                tp.line_segment([pos2(cx - 3.5, cy - 1.5), pos2(cx, cy + 2.0)], stroke);
+                tp.line_segment([pos2(cx, cy + 2.0), pos2(cx + 3.5, cy - 1.5)], stroke);
+            } else {
+                if !(*enabled && resp.hovered()) {
+                    let (shadow, light) = (c.toolbar_split_shadow, c.toolbar_split_light);
+                    let (y0, y1) = (ay - 10.0, ay + 13.0);
+                    winui::fill_l(&p, x + bw - 1.0, y0, x + bw - 1.0, y1, shadow);
+                    winui::fill_l(&p, x + bw, y0, x + bw, y1, light);
+                }
+                for (row, half) in [3.0f32, 2.0, 1.0, 0.0].iter().enumerate() {
+                    winui::fill_l(
+                        &p,
+                        ax + 3.0 - half,
+                        ay + row as f32,
+                        ax + 3.0 + half,
+                        ay + row as f32,
+                        TB_ARROW(),
+                    );
+                }
             }
         }
         // No right-click menu: it would offer toolbar looks (sizes, styles) and only one is
@@ -1699,12 +2419,76 @@ pub fn toolbar(
             // The drop-down menu's top-left is the button's left edge at client y 85; in RTL its
             // top-right at the button's right edge.
             event = Some(if on_arrow {
-                ToolbarEvent::Drop(i, pos2(winui::mx(x), o.y + 85.0))
+                let drop_y = if is_modern { band.bottom() + 4.0 } else { o.y + 85.0 };
+                ToolbarEvent::Drop(i, pos2(winui::mx(x), drop_y))
             } else {
                 ToolbarEvent::Click(i)
             });
         }
         x += total;
+        if is_modern && matches!(icon, Icon::AddTorrent | Icon::StopAll | Icon::DeleteCompleted | Icon::Scheduler) {
+            let sep_x = x + 3.0;
+            tp.line_segment(
+                [pos2(sep_x, band.top() + 14.0), pos2(sep_x, band.top() + 52.0)],
+                egui::Stroke::new(1.0, c.toolbar_split_shadow),
+            );
+            x += 8.0;
+        }
+    }
+
+    if show_left {
+        let btn_y = band.top() + (band_h - 28.0) / 2.0;
+        let btn_rect = Rect::from_min_size(pos2(o.x + 3.0, btn_y), vec2(nav_btn_w, 28.0));
+        let resp = ui.interact(winui::rect(btn_rect), egui::Id::unique("tb-nav-left"), winui::pointer_only());
+        let (btn_bg, border_c, glyph_c) = if resp.hovered() {
+            if crate::theme::dark() {
+                (Color32::from_rgb(71, 85, 105), Color32::from_rgb(100, 116, 139), Color32::WHITE)
+            } else {
+                (Color32::from_rgb(203, 213, 225), Color32::from_rgb(148, 163, 184), Color32::from_rgb(15, 23, 42))
+            }
+        } else if crate::theme::dark() {
+            (Color32::from_rgb(51, 65, 85), Color32::from_rgb(71, 85, 105), Color32::from_rgb(226, 232, 240))
+        } else {
+            (Color32::from_rgb(226, 232, 240), Color32::from_rgb(203, 213, 225), Color32::from_rgb(71, 85, 105))
+        };
+        p.rect_filled(winui::rect(btn_rect), 8.0, btn_bg);
+        p.rect_stroke(winui::rect(btn_rect), 8.0, Stroke::new(1.0, border_c), egui::StrokeKind::Inside);
+        let center = btn_rect.center();
+        let stroke = Stroke::new(1.8, glyph_c);
+        p.line_segment([pos2(center.x + 1.5, center.y - 4.5), pos2(center.x - 2.5, center.y)], stroke);
+        p.line_segment([pos2(center.x - 2.5, center.y), pos2(center.x + 1.5, center.y + 4.5)], stroke);
+        if resp.clicked() {
+            let next = (scroll_offset - 90.0).max(0.0);
+            ui.ctx().data_mut(|d| d.insert_temp(scroll_id, next));
+            ui.ctx().request_repaint();
+        }
+    }
+    if show_right {
+        let btn_y = band.top() + (band_h - 28.0) / 2.0;
+        let btn_rect = Rect::from_min_size(pos2(o.x + width - nav_btn_w - 3.0, btn_y), vec2(nav_btn_w, 28.0));
+        let resp = ui.interact(winui::rect(btn_rect), egui::Id::unique("tb-nav-right"), winui::pointer_only());
+        let (btn_bg, border_c, glyph_c) = if resp.hovered() {
+            if crate::theme::dark() {
+                (Color32::from_rgb(71, 85, 105), Color32::from_rgb(100, 116, 139), Color32::WHITE)
+            } else {
+                (Color32::from_rgb(203, 213, 225), Color32::from_rgb(148, 163, 184), Color32::from_rgb(15, 23, 42))
+            }
+        } else if crate::theme::dark() {
+            (Color32::from_rgb(51, 65, 85), Color32::from_rgb(71, 85, 105), Color32::from_rgb(226, 232, 240))
+        } else {
+            (Color32::from_rgb(226, 232, 240), Color32::from_rgb(203, 213, 225), Color32::from_rgb(71, 85, 105))
+        };
+        p.rect_filled(winui::rect(btn_rect), 8.0, btn_bg);
+        p.rect_stroke(winui::rect(btn_rect), 8.0, Stroke::new(1.0, border_c), egui::StrokeKind::Inside);
+        let center = btn_rect.center();
+        let stroke = Stroke::new(1.8, glyph_c);
+        p.line_segment([pos2(center.x - 2.5, center.y - 4.5), pos2(center.x + 1.5, center.y)], stroke);
+        p.line_segment([pos2(center.x + 1.5, center.y), pos2(center.x - 2.5, center.y + 4.5)], stroke);
+        if resp.clicked() {
+            let next = (scroll_offset + 90.0).min(max_scroll);
+            ui.ctx().data_mut(|d| d.insert_temp(scroll_id, next));
+            ui.ctx().request_repaint();
+        }
     }
     event
 }
@@ -1781,6 +2565,7 @@ pub enum TreeEvent {
     Close,
     /// Right-click: the row whose menu opens (the selection does not move) and where.
     Context(usize, Pos2),
+    OpenSpeedSettings,
 }
 
 /// The Categories pane: frame x 6 .. `right` (IDM: 148, resizable by the splitter), caption, close "x", tree (rows 16 px, indent 19).
@@ -1795,73 +2580,133 @@ pub fn categories(
     keys: bool,
 ) -> Option<TreeEvent> {
     let p = ui.painter().clone();
-    let y0 = o.y + pane_top() + MENU_H; // frame top
+    let y0 = o.y + pane_top() + menu_h(); // frame top
+    let c = crate::theme::colors();
+    let is_modern = crate::theme::metrics().flyout_radius >= 12.0;
+    let card_radius = if is_modern { 14.0 } else { 0.0 };
+    let (left_pad, top_pad, bot_pad) = if is_modern {
+        (12.0, 8.0, 8.0)
+    } else {
+        (6.0, 0.0, 5.0)
+    };
     // Laid out in English (frame x 6 .. right); every part made where it is on screen — the pane
     // on the right in RTL, its tree indenting from the right.
     let frame = winui::rect(Rect::from_min_max(
-        pos2(o.x + 6.0, y0),
-        pos2(right, bottom - 5.0),
+        pos2(o.x + left_pad, y0 + top_pad),
+        pos2(right, bottom - bot_pad),
     ));
+    if is_modern {
+        p.rect_filled(frame, card_radius, TREE_BG());
+    }
     p.rect_stroke(
         frame,
-        0.0,
+        card_radius,
         Stroke::new(1.0, CAT_FRAME()),
         egui::StrokeKind::Inside,
     );
-    winui::fill_l(
-        &p,
-        o.x + 6.0,
-        y0 + 18.0,
-        right - 1.0,
-        y0 + 18.0,
-        CAT_FRAME(),
-    ); // caption underline
+    if !is_modern {
+        winui::fill_l(
+            &p,
+            o.x + 6.0,
+            y0 + 18.0,
+            right - 1.0,
+            y0 + 18.0,
+            CAT_FRAME(),
+        ); // caption underline
+    }
     // i18n: title of the side pane that lists the categories
-    let caption = crate::i18n::t("Categories");
+    let caption = if is_modern { "CATEGORIES" } else { crate::i18n::t("Categories") };
+    let font = if is_modern { winui::segoe() } else { winui::tahoma() };
+    let header_h = if is_modern { 60.0 } else { 18.0 };
     // Short of the close box: in a narrow pane or a long translation, "..." and whole on hover.
-    let shown = winui::ellipsize(&p, &winui::tahoma(), caption, right - 21.0 - (o.x + 12.0));
-    let drawn = text_font(&p, winui::tahoma(), o.x + 12.0, y0 + 13.0, &shown, TEXT());
+    let shown = winui::ellipsize(&p, &font, caption, right - 46.0 - (o.x + left_pad + 16.0));
+    let cap_y = if is_modern { y0 + top_pad + header_h / 2.0 + 4.5 } else { y0 + 13.0 };
+    let header_color = if is_modern {
+        if crate::theme::dark() { egui::Color32::from_rgb(148, 163, 184) } else { egui::Color32::from_rgb(100, 116, 139) }
+    } else {
+        TEXT()
+    };
+    let drawn = text_font(&p, font.clone(), o.x + left_pad + if is_modern { 16.0 } else { 8.0 }, cap_y, &shown, header_color);
     if shown != caption {
         winui::full_on_hover(ui, drawn, "categories-caption", caption);
     }
     let mut event = None;
-    let close = winui::rect(Rect::from_min_size(
-        pos2(right - 19.0, y0 + 2.0),
-        vec2(16.0, 15.0),
-    ));
+    let close = if is_modern {
+        let btn_sz = 28.0;
+        let btn_y = y0 + top_pad + (header_h - btn_sz) / 2.0;
+        winui::rect(Rect::from_min_size(
+            pos2(right - 14.0 - btn_sz, btn_y),
+            vec2(btn_sz, btn_sz),
+        ))
+    } else {
+        winui::rect(Rect::from_min_size(
+            pos2(right - 20.0, y0 + top_pad + 5.0),
+            vec2(16.0, 15.0),
+        ))
+    };
     let cr = ui
         .interact(close, egui::Id::unique("cat-close"), winui::pointer_only())
         // i18n: tooltip of the × that closes the Categories pane
         .on_hover_text(crate::i18n::t("Close"));
-    if let Some(c) = winui::subtle_fill(winui::State::of(&cr, true), crate::theme::colors()) {
-        p.rect_filled(close, crate::theme::metrics().part_radius, c);
+    if is_modern {
+        let (btn_bg, border_c, glyph_c) = if cr.hovered() {
+            if crate::theme::dark() {
+                (Color32::from_rgb(71, 85, 105), Color32::from_rgb(100, 116, 139), Color32::WHITE)
+            } else {
+                (Color32::from_rgb(203, 213, 225), Color32::from_rgb(148, 163, 184), Color32::from_rgb(15, 23, 42))
+            }
+        } else if crate::theme::dark() {
+            (Color32::from_rgb(51, 65, 85), Color32::from_rgb(71, 85, 105), Color32::from_rgb(226, 232, 240))
+        } else {
+            (Color32::from_rgb(226, 232, 240), Color32::from_rgb(203, 213, 225), Color32::from_rgb(71, 85, 105))
+        };
+        p.rect_filled(close, 8.0, btn_bg);
+        p.rect_stroke(close, 8.0, Stroke::new(1.0, border_c), egui::StrokeKind::Inside);
+        let center = close.center();
+        let stroke = Stroke::new(1.8, glyph_c);
+        p.line_segment([pos2(center.x - 4.5, center.y - 4.5), pos2(center.x + 4.5, center.y + 4.5)], stroke);
+        p.line_segment([pos2(center.x + 4.5, center.y - 4.5), pos2(center.x - 4.5, center.y + 4.5)], stroke);
+    } else {
+        if let Some(c) = winui::subtle_fill(winui::State::of(&cr, true), crate::theme::colors()) {
+            p.rect_filled(close, crate::theme::metrics().part_radius, c);
+        }
+        text_font(
+            &p,
+            winui::arial_bold(),
+            right - 15.0,
+            y0 + 13.0,
+            crate::i18n::t("x"),
+            header_color,
+        );
     }
-    text_font(
-        &p,
-        winui::arial_bold(),
-        right - 15.0,
-        y0 + 13.0,
-        crate::i18n::t("x"),
-        TEXT(),
-    );
     if cr.clicked() {
         event = Some(TreeEvent::Close);
     }
-    let tree = Rect::from_min_max(pos2(o.x + 8.0, y0 + 18.0), pos2(right - 3.0, bottom - 9.0));
-    p.rect_filled(winui::rect(tree), 0.0, TREE_BG());
+    let limiter_h = if is_modern { 72.0 } else { 0.0 };
+    let tree_top = if is_modern { y0 + top_pad + header_h } else { y0 + 18.0 };
+    let tree = Rect::from_min_max(
+        pos2(o.x + left_pad + 4.0, tree_top),
+        pos2(right - 4.0, bottom - bot_pad - 4.0 - limiter_h),
+    );
+    if !is_modern {
+        p.rect_filled(winui::rect(tree), 0.0, TREE_BG());
+    }
 
     // Scroll bars (notes/ui-spec/scrollbars.md "Categories tree"): by rows vertically, by
     // pixels horizontally; each shows when the content overflows (Win32 rule).
-    let content_h = rows.len() as f32 * 16.0;
+    let row_h = if is_modern { 38.0 } else { 16.0 };
+    let content_h = rows.len() as f32 * row_h;
     let content_w = rows
         .iter()
         .map(|r| {
-            let text_x = if r.level == 0 { 51.0 } else { 70.0 };
+            let text_x = if is_modern {
+                if r.level == 0 { 40.0 } else { 56.0 }
+            } else if r.level == 0 { 51.0 } else { 70.0 };
             let count = r.count.map_or(0.0, |n| {
-                5.0 + text_width_font(&p, winui::tahoma(), &count_text(n))
+                5.0 + text_width_font(&p, font.clone(), &count_text(n))
             });
             text_x - 8.0
-                + text_width_font(&p, winui::tahoma(), crate::i18n::t(&r.label))
+                + text_width_font(&p, font.clone(), crate::i18n::t(&r.label))
                 + count
                 + 5.0
         })
@@ -1884,9 +2729,9 @@ pub fn categories(
         .ctx()
         .data(|d| d.get_temp::<(f32, f32)>(scroll_id))
         .unwrap_or_default();
-    let page_rows = (area.height() / 16.0).floor().max(1.0);
+    let page_rows = (area.height() / row_h).floor().max(1.0);
     if ui.rect_contains_pointer(winui::rect(tree)) {
-        vpos += winui::wheel_rows(ui, 16.0, page_rows);
+        vpos += winui::wheel_rows(ui, row_h, page_rows);
         hpos -= ui.input(|i| i.smooth_scroll_delta.x);
     }
     vpos = vpos.clamp(0.0, (rows.len() as f32 - page_rows).max(0.0));
@@ -1895,7 +2740,7 @@ pub fn categories(
     // Everything below is laid out from a horizontally scrolled origin.
     let o = pos2(o.x - hpos, o.y);
     let tp = p.with_clip_rect(winui::rect(area));
-    let row_top = |k: usize| area.top() + 16.0 * (k as f32 - first_row);
+    let row_top = |k: usize| area.top() + row_h * (k as f32 - first_row);
     // Blank space (registered first, so the rows sit above it): the selected node's menu, at
     // the pointer (IDM places it beside the node; user decision: at the pointer).
     let blank = ui.interact(
@@ -1922,44 +2767,46 @@ pub fn categories(
     // Where the selected row is, for its menu from the keyboard (Shift+F10, the Menu key).
     let mut selected_at: Option<(usize, Pos2)> = None;
 
-    // Connector dots (#6d6d6d, every other pixel), painted first; expander boxes cover them.
-    let roots: Vec<usize> = (0..rows.len()).filter(|&k| rows[k].level == 0).collect();
-    if let (Some(&first), Some(&last)) = (roots.first(), roots.last()) {
-        let mut y = row_top(first);
-        while y <= row_top(last) + 8.0 {
-            if (y - tree.top()) as i32 % 2 == 0 {
-                winui::px_l(&tp, o.x + 19.0, y, TREE_LINES());
-            }
-            y += 1.0;
-        }
-        for &k in &roots {
-            let mut x = o.x + 19.0;
-            while x <= o.x + 29.0 {
-                winui::px_l(&tp, x, row_top(k) + 8.0, TREE_LINES());
-                x += 2.0;
-            }
-        }
-    }
-    for (k, r) in rows.iter().enumerate() {
-        if r.level == 1 {
-            let mut x = o.x + 38.0;
-            while x <= o.x + 48.0 {
-                winui::px_l(&tp, x, row_top(k) + 8.0, TREE_LINES());
-                x += 2.0;
-            }
-            let is_last = rows.get(k + 1).is_none_or(|n| n.level == 0);
-            let start = row_top(k);
-            let end = if is_last {
-                row_top(k) + 8.0
-            } else {
-                row_top(k) + 15.0
-            };
-            let mut y = start;
-            while y <= end {
+    if !is_modern {
+        // Connector dots (#6d6d6d, every other pixel), painted first; expander boxes cover them.
+        let roots: Vec<usize> = (0..rows.len()).filter(|&k| rows[k].level == 0).collect();
+        if let (Some(&first), Some(&last)) = (roots.first(), roots.last()) {
+            let mut y = row_top(first);
+            while y <= row_top(last) + 8.0 {
                 if (y - tree.top()) as i32 % 2 == 0 {
-                    winui::px_l(&tp, o.x + 38.0, y, TREE_LINES());
+                    winui::px_l(&tp, o.x + 19.0, y, TREE_LINES());
                 }
                 y += 1.0;
+            }
+            for &k in &roots {
+                let mut x = o.x + 19.0;
+                while x <= o.x + 29.0 {
+                    winui::px_l(&tp, x, row_top(k) + 8.0, TREE_LINES());
+                    x += 2.0;
+                }
+            }
+        }
+        for (k, r) in rows.iter().enumerate() {
+            if r.level == 1 {
+                let mut x = o.x + 38.0;
+                while x <= o.x + 48.0 {
+                    winui::px_l(&tp, x, row_top(k) + 8.0, TREE_LINES());
+                    x += 2.0;
+                }
+                let is_last = rows.get(k + 1).is_none_or(|n| n.level == 0);
+                let start = row_top(k);
+                let end = if is_last {
+                    row_top(k) + 8.0
+                } else {
+                    row_top(k) + 15.0
+                };
+                let mut y = start;
+                while y <= end {
+                    if (y - tree.top()) as i32 % 2 == 0 {
+                        winui::px_l(&tp, o.x + 38.0, y, TREE_LINES());
+                    }
+                    y += 1.0;
+                }
             }
         }
     }
@@ -1970,12 +2817,38 @@ pub fn categories(
         if top < area.top() || top >= area.bottom() {
             continue;
         }
-        let icon_x = o.x + if r.level == 0 { 30.0 } else { 49.0 };
-        let text_x = o.x + if r.level == 0 { 51.0 } else { 70.0 };
-        let ext = text_width_font(&p, winui::tahoma(), crate::i18n::t(&r.label));
-        if r.selected {
-            // The inactive selection grey behind the label, in both modes (#f0f0f0 on the white
-            // tree could not be seen).
+        let icon_x = if is_modern {
+            area.left() + if r.level == 0 { 16.0 } else { 32.0 }
+        } else {
+            o.x + if r.level == 0 { 30.0 } else { 49.0 }
+        };
+        let text_x = if is_modern {
+            icon_x + 24.0
+        } else {
+            o.x + if r.level == 0 { 51.0 } else { 70.0 }
+        };
+        let ext = text_width_font(&p, font.clone(), crate::i18n::t(&r.label));
+        if is_modern {
+            let pill = Rect::from_min_max(
+                pos2(area.left() + 6.0, top + 2.0),
+                pos2(area.right() - 6.0, top + row_h - 2.0),
+            );
+            if r.selected {
+                let sel_bg = if crate::theme::dark() {
+                    Color32::from_rgba_unmultiplied(16, 185, 129, 38)
+                } else {
+                    Color32::from_rgba_unmultiplied(16, 185, 129, 28)
+                };
+                tp.rect_filled(winui::rect(pill), 10.0, sel_bg);
+            } else if ui.rect_contains_pointer(winui::rect(pill)) {
+                let hover_c = if crate::theme::dark() {
+                    Color32::from_rgb(51, 65, 85)
+                } else {
+                    Color32::from_rgb(241, 245, 249)
+                };
+                tp.rect_filled(winui::rect(pill), 10.0, hover_c);
+            }
+        } else if r.selected {
             winui::fill_l(
                 &tp,
                 text_x - 2.0,
@@ -1985,20 +2858,22 @@ pub fn categories(
                 winui::SELECTED_INACTIVE(),
             );
         }
-        if let Some(open) = r.expander {
-            if crate::theme::colors().tree_chevrons {
-                winui::fill_l(&tp, o.x + 11.0, top, o.x + 26.0, top + 15.0, TREE_BG());
-                chevron(&tp, o.x, top, open, r.selected);
-            } else {
-                // Classic box; nothing opaque around it, so connectors run up to it.
-                expander_box(&tp, o.x, top, open);
+        if !is_modern {
+            if let Some(open) = r.expander {
+                if c.tree_chevrons {
+                    winui::fill_l(&tp, o.x + 11.0, top, o.x + 26.0, top + 15.0, TREE_BG());
+                    chevron(&tp, o.x, top, open, r.selected);
+                } else {
+                    expander_box(&tp, o.x, top, open);
+                }
             }
         }
         // Icons placed, not mirrored.
-        icons.paint_in(ui, &tp, r.icon.clone(), pos2(icon_x, top));
+        let icon_y = top + if is_modern { (row_h - 16.0) / 2.0 } else { 0.0 };
+        icons.paint_in(ui, &tp, r.icon.clone(), pos2(icon_x, icon_y));
         if let Some(name) = r.badge {
             let rc = winui::rect(Rect::from_min_size(
-                pos2(icon_x + 7.0, top + 7.0),
+                pos2(icon_x + 7.0, icon_y + 7.0),
                 vec2(9.0, 9.0),
             ));
             // The check badge from the theme's icon set, where it has one.
@@ -2008,15 +2883,21 @@ pub fn categories(
                 paint_image(ui, &tp, src, rc);
             }
         }
+        let text_y = top + if is_modern { row_h / 2.0 + 4.5 } else { 11.0 };
+        let text_ink = if is_modern && r.selected {
+            c.accent
+        } else {
+            TEXT()
+        };
         text_font(
             &tp,
-            winui::tahoma(),
+            font.clone(),
             text_x,
-            top + 11.0,
+            text_y,
             crate::i18n::t(&r.label),
-            TEXT(),
+            text_ink,
         );
-        if keys && r.selected {
+        if keys && r.selected && !is_modern {
             winui::focus_ring(
                 &tp,
                 winui::rect(Rect::from_min_max(
@@ -2027,18 +2908,79 @@ pub fn categories(
         }
         if let Some(n) = r.count {
             let count = count_text(n);
-            text_font(
-                &tp,
-                winui::tahoma(),
-                text_x + ext + 5.0,
-                top + 11.0,
-                &count,
-                winui::MUTED(),
-            );
+            if is_modern {
+                let count_num = format!("{n}");
+                let cw = text_width_font(&p, winui::segoe(), &count_num);
+                let badge_w = (cw + 12.0).max(20.0);
+                let badge_h = 20.0;
+                let badge_right = if r.expander.is_some() {
+                    area.right() - 38.0
+                } else {
+                    area.right() - 14.0
+                };
+                let badge_rect = Rect::from_min_size(
+                    pos2(badge_right - badge_w, top + (row_h - badge_h) / 2.0),
+                    vec2(badge_w, badge_h),
+                );
+                let (badge_bg, badge_fg) = if r.selected {
+                    (Color32::from_rgb(16, 185, 129), Color32::WHITE)
+                } else if crate::theme::dark() {
+                    (Color32::from_rgb(30, 41, 59), Color32::from_rgb(148, 163, 184))
+                } else {
+                    (Color32::from_rgb(241, 245, 249), Color32::from_rgb(100, 116, 139))
+                };
+                tp.rect_filled(winui::rect(badge_rect), 10.0, badge_bg);
+                text_font(
+                    &tp,
+                    winui::segoe(),
+                    badge_rect.left() + (badge_w - cw) / 2.0,
+                    badge_rect.top() + 14.5,
+                    &count_num,
+                    badge_fg,
+                );
+            } else {
+                text_font(
+                    &tp,
+                    font.clone(),
+                    text_x + ext + 5.0,
+                    text_y,
+                    &count,
+                    winui::MUTED(),
+                );
+            }
+        }
+        if is_modern && let Some(open) = r.expander {
+            let btn_sz = 22.0;
+            let cx = area.right() - 20.0;
+            let cy = top + row_h / 2.0;
+            let btn_rect = Rect::from_center_size(pos2(cx, cy), vec2(btn_sz, btn_sz));
+            let chev_hovered = ui.rect_contains_pointer(winui::rect(btn_rect));
+            let (btn_bg, border_c, glyph_c) = if chev_hovered {
+                if crate::theme::dark() {
+                    (Color32::from_rgb(71, 85, 105), Color32::from_rgb(100, 116, 139), Color32::WHITE)
+                } else {
+                    (Color32::from_rgb(203, 213, 225), Color32::from_rgb(148, 163, 184), Color32::from_rgb(15, 23, 42))
+                }
+            } else if crate::theme::dark() {
+                (Color32::from_rgb(51, 65, 85), Color32::from_rgb(71, 85, 105), Color32::from_rgb(226, 232, 240))
+            } else {
+                (Color32::from_rgb(226, 232, 240), Color32::from_rgb(203, 213, 225), Color32::from_rgb(71, 85, 105))
+            };
+            tp.rect_filled(winui::rect(btn_rect), 6.0, btn_bg);
+            tp.rect_stroke(winui::rect(btn_rect), 6.0, Stroke::new(1.0, border_c), egui::StrokeKind::Inside);
+
+            let stroke = Stroke::new(1.8, glyph_c);
+            if open {
+                tp.line_segment([pos2(cx - 3.5, cy - 2.0), pos2(cx, cy + 1.5)], stroke);
+                tp.line_segment([pos2(cx, cy + 1.5), pos2(cx + 3.5, cy - 2.0)], stroke);
+            } else {
+                tp.line_segment([pos2(cx - 2.0, cy - 3.5), pos2(cx + 1.5, cy)], stroke);
+                tp.line_segment([pos2(cx + 1.5, cy), pos2(cx - 2.0, cy + 3.5)], stroke);
+            }
         }
 
         let row = winui::rect(
-            Rect::from_min_size(pos2(area.left(), top), vec2(area.width(), 16.0)).intersect(area),
+            Rect::from_min_size(pos2(area.left(), top), vec2(area.width(), row_h)).intersect(area),
         );
         let resp = rows_ui.interact(
             row,
@@ -2094,7 +3036,11 @@ pub fn categories(
         if resp.clicked() {
             let on_expander = resp.interact_pointer_pos().is_some_and(|q| {
                 let x = winui::mx(q.x);
-                x >= o.x + 11.0 && x <= o.x + 26.0
+                if is_modern {
+                    x >= area.right() - 36.0
+                } else {
+                    x >= o.x + 11.0 && x <= o.x + 26.0
+                }
             });
             event = Some(if on_expander && r.expander.is_some() {
                 TreeEvent::Toggle(k)
@@ -2167,6 +3113,65 @@ pub fn categories(
     }
     ui.ctx()
         .data_mut(|d| d.insert_temp(scroll_id, (vpos, hpos)));
+    if is_modern {
+        let div_c = if crate::theme::dark() {
+            egui::Color32::from_rgb(30, 41, 59)
+        } else {
+            egui::Color32::from_rgb(241, 245, 249)
+        };
+        p.line_segment(
+            [pos2(o.x + left_pad, bottom - limiter_h), pos2(right, bottom - limiter_h)],
+            egui::Stroke::new(1.0, div_c),
+        );
+        let card_rect = Rect::from_min_max(
+            pos2(o.x + left_pad + 10.0, bottom - bot_pad - 54.0),
+            pos2(right - 10.0, bottom - bot_pad - 10.0),
+        );
+        let resp = ui.interact(
+            winui::rect(card_rect),
+            egui::Id::unique("sidebar-speed-limiter"),
+            winui::pointer_only(),
+        );
+        let (card_bg, card_border) = if resp.hovered() {
+            (
+                if crate::theme::dark() { egui::Color32::from_rgb(30, 41, 59) } else { egui::Color32::from_rgb(248, 250, 252) },
+                if crate::theme::dark() { egui::Color32::from_rgb(71, 85, 105) } else { egui::Color32::from_rgb(203, 213, 225) },
+            )
+        } else {
+            (
+                if crate::theme::dark() { egui::Color32::from_rgb(15, 23, 42) } else { egui::Color32::WHITE },
+                if crate::theme::dark() { egui::Color32::from_rgb(51, 65, 85) } else { egui::Color32::from_rgb(226, 232, 240) },
+            )
+        };
+        p.rect_filled(winui::rect(card_rect), 12.0, card_bg);
+        p.rect_stroke(winui::rect(card_rect), 12.0, egui::Stroke::new(1.0, card_border), egui::StrokeKind::Inside);
+
+        // Speedometer icon: emerald arc and needle
+        let icon_cx = card_rect.left() + 20.0;
+        let icon_cy = card_rect.center().y;
+        p.circle_stroke(pos2(icon_cx, icon_cy), 7.0, egui::Stroke::new(1.8, egui::Color32::from_rgb(16, 185, 129)));
+        p.line_segment([pos2(icon_cx, icon_cy), pos2(icon_cx + 4.5, icon_cy - 4.5)], egui::Stroke::new(1.8, egui::Color32::from_rgb(16, 185, 129)));
+
+        // Label: "Speed Limiter"
+        let font = winui::segoe();
+        text_font(&p, font.clone(), card_rect.left() + 36.0, card_rect.center().y + 4.5, "Speed Limiter", TEXT());
+
+        // Pill badge on the right: "Off"
+        let badge_w = 36.0;
+        let badge_h = 22.0;
+        let badge_rect = Rect::from_min_size(
+            pos2(card_rect.right() - badge_w - 10.0, card_rect.center().y - (badge_h / 2.0)),
+            egui::vec2(badge_w, badge_h),
+        );
+        let badge_bg = if crate::theme::dark() { egui::Color32::from_rgb(30, 41, 59) } else { egui::Color32::from_rgb(241, 245, 249) };
+        let badge_fg = if crate::theme::dark() { egui::Color32::from_rgb(148, 163, 184) } else { egui::Color32::from_rgb(71, 85, 105) };
+        p.rect_filled(winui::rect(badge_rect), 6.0, badge_bg);
+        text_font(&p, font.clone(), badge_rect.left() + 8.5, badge_rect.center().y + 4.0, "Off", badge_fg);
+
+        if resp.clicked() {
+            event = Some(TreeEvent::OpenSpeedSettings);
+        }
+    }
     event
 }
 
