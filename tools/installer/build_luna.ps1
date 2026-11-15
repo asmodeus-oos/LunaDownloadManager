@@ -1,4 +1,4 @@
-param([string]$SignCommand = $env:MDM_SIGN_COMMAND)
+param([string]$SignThumbprint = "339BF03A25945292A7DDAA3CACFA0FDFE6430316")
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $dist = Join-Path $root "target\dist"
@@ -7,6 +7,29 @@ $bin = Join-Path $root "target\release"
 $cargo = Get-Content (Join-Path $root "Cargo.toml") -Raw
 $version = [regex]::Match($cargo, '(?m)^version\s*=\s*"([^"]+)"').Groups[1].Value
 if (-not $version) { $version = "6.0.0" }
+
+$signtool = @(
+  (Get-Command signtool.exe -ErrorAction SilentlyContinue).Source,
+  "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe",
+  "C:\Program Files (x86)\Windows Kits\10\App Certification Kit\signtool.exe"
+) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+
+$hasCert = $false
+if ($SignThumbprint -and (Test-Path "Cert:\CurrentUser\My\$SignThumbprint")) {
+  $hasCert = $true
+}
+
+# Sign binaries in target/release if signtool and cert exist
+if ($signtool -and $hasCert) {
+  Write-Host "Signing release executables with thumbprint $SignThumbprint..." -ForegroundColor Cyan
+  $exesToSign = @("lunadownloadmanager.exe", "lunadownloadmanager-nmhost.exe", "lunadownloadmanager-cli.exe", "lunadownloadmanager-mcp.exe")
+  foreach ($exe in $exesToSign) {
+    $targetPath = Join-Path $bin $exe
+    if (Test-Path $targetPath) {
+      & $signtool sign /sha1 $SignThumbprint /fd sha256 $targetPath
+    }
+  }
+}
 
 $iscc = @($env:ISCC, (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source,
   "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
@@ -17,11 +40,17 @@ if (-not $iscc) { throw "Inno Setup 6 (ISCC.exe) not found" }
 
 New-Item -ItemType Directory -Force $dist | Out-Null
 $isccArgs = @("/Qp", "/DAppVersion=$version")
-if ($SignCommand) { $isccArgs += @("/DSign", "/Smdmsign=$SignCommand") }
 
 Write-Host "Compiling installer with ISCC..." -ForegroundColor Cyan
 & $iscc @isccArgs (Join-Path $PSScriptRoot "luna.iss")
 if ($LASTEXITCODE) { throw "ISCC failed with exit code $LASTEXITCODE" }
+
+# Sign the resulting installer executable
+$setupExe = Join-Path $dist "LunaDownloadManager-$version-setup.exe"
+if ($signtool -and $hasCert -and (Test-Path $setupExe)) {
+  Write-Host "Signing installer executable..." -ForegroundColor Cyan
+  & $signtool sign /sha1 $SignThumbprint /fd sha256 $setupExe
+}
 
 function New-Zip([string]$name, [bool]$portable) {
   $stage = Join-Path $dist "stage\$name"
